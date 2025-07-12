@@ -131,8 +131,7 @@ Route::get('/roles/getById/{id}', [RoleShowController::class, 'getById']);
 Route::get('/roles/getByName/{name}', [RoleShowController::class, 'getByName']);
 Route::put('/roles/updateById/{id}', [RoleUpdateController::class, 'updateById']);
 Route::delete('/roles/deleteById/{id}', [RoleDeleteController::class, 'destroy']);
-// Route::apiResource('roles', RoleController::class);
-
+ 
 Route::post('/roles/assigne-role', [RoleAssigneController::class, 'assigneRole']);
 Route::get('/roles/{id}/all-users-du-role', [RoleListeUsersDuRoleController::class, 'checkRoleUsers']);// fonctionne pas
 //Revoke ne marche pas
