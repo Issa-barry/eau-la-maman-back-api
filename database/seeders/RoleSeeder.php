@@ -3,30 +3,42 @@
 namespace Database\Seeders;
 
 use App\Models\Role;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class RoleSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-         $roles = [
-            'Administrateur',          
-            'Client', 
-            'Agent',         
-            'Responssable agence', 
+        $roles = [
+            ['name' => 'Administrateur',       'trigramme' => 'adm'],
+            ['name' => 'Client',               'trigramme' => 'cli'],
+            ['name' => 'Agent',                'trigramme' => 'agt'],
+            ['name' => 'Responsable agence',   'trigramme' => 'res'],
         ];
 
-        foreach ($roles as $role) {
-            Role::updateOrCreate(['name' => $role]);
+        foreach ($roles as $data) {
+            $name = strtolower($data['name']);        // force en minuscule
+            $trigramme = strtolower($data['trigramme']); // force en minuscule aussi
+
+            // Vérifie si un autre rôle utilise déjà ce trigramme
+            $exists = Role::where('trigramme', $trigramme)
+                ->where('name', '!=', $name)
+                ->exists();
+
+            if ($exists) {
+                $this->command->error("⚠️ Le trigramme '{$trigramme}' est déjà utilisé !");
+                continue;
+            }
+
+            Role::updateOrCreate(
+                ['name' => $name],
+                [
+                    'guard_name' => 'web',
+                    'trigramme' => $trigramme,
+                ]
+            );
         }
 
-        $this->command->info('Les rôles ont été créés avec succès !');
+        $this->command->info('✅ Les rôles ont été créés avec succès en minuscules !');
     }
-
-    // php artisan db:seed --class=RoleSeeder
-
 }

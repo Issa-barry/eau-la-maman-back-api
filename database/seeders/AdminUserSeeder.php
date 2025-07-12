@@ -21,7 +21,7 @@ class AdminUserSeeder extends Seeder
         $role = Role::firstOrCreate(['name' => 'Administrateur']);
 
         // Vérifier si l'utilisateur admin existe déjà
-        $admin = User::where('email', 'admin@example.com')->first();
+        $admin = User::where('email', 'wotapif@gmail.com')->first();
 
         if (!$admin) {
             // Créer l'adresse de l'utilisateur admin

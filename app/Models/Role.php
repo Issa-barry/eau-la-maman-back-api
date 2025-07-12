@@ -13,18 +13,19 @@ class Role extends SpatieRole
 
     protected $fillable = [
         'name',
+        'trigramme',
         'guard_name'
     ];
 
-     /**
+    /**
      * Mutator pour capitaliser la première lettre du nom du rôle
      */
     public function setNameAttribute($value)
     {
-         $this->attributes['name'] = ucfirst(strtolower($value));
+        $this->attributes['name'] = strtolower($value);
     }
 
-     public function permissions(): BelongsToMany
+    public function permissions(): BelongsToMany
     {
         return parent::permissions(); // Hérite de la relation définie dans SpatieRole
     }
@@ -44,7 +45,7 @@ class Role extends SpatieRole
     {
         return $this->users()->exists();
     }
-    
+
     // public static function boot()
     //     {
     //         parent::boot();
