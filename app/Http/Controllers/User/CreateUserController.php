@@ -14,7 +14,7 @@ use Exception;
 use Hash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
+ 
 class CreateUserController extends Controller
 {
     use JsonResponseTrait; 

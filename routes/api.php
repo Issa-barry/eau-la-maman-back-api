@@ -18,7 +18,6 @@ use App\Http\Controllers\User\ShowUserController;
 use App\Http\Controllers\User\updateUserController;
 use App\Http\Controllers\User\CreateUserController;
 
-use App\Http\Controllers\ConversionController;
 use App\Http\Controllers\Devises\DeviseCreateController;
 use App\Http\Controllers\Devises\DeviseDeleteController;
 use App\Http\Controllers\Devises\DeviseShowController;
@@ -50,17 +49,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/check-token-header', [AuthController::class, 'checkTokenInHeader']);
 });
-
-// Route::middleware('auth:sanctum')->group(function () {
-
-// });
-
-
-Route::get('conversions', [ConversionController::class, 'index']);
-Route::post('conversions', [ConversionController::class, 'store']);
-Route::get('conversions/{conversion}', [ConversionController::class, 'show']);
-Route::put('conversions/{conversion}', [ConversionController::class, 'update']);
-Route::delete('conversions/{conversion}', [ConversionController::class, 'destroy']);
 
 
 /**********************************************************

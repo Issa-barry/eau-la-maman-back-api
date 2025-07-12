@@ -6,51 +6,43 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use App\Traits\JsonResponseTrait;
 
 class RoleCreateController extends Controller
 {
+    use JsonResponseTrait;
+
     /**
-     * Créer un nouveau rôle
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Créer un nouveau rôle avec trigramme généré automatiquement
      */
     public function store(Request $request)
     {
         try {
-            // Validation des données d'entrée
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:roles,name',
             ]);
 
-            // Mettre la première lettre en majuscule
-            $roleName = ucfirst(strtolower($validated['name']));
+            $name = strtolower($validated['name']);
+            $trigramme = generateTrigramme($name);
 
-            // Création du rôle
+            // Vérifie que le trigramme n'existe pas déjà
+            if (Role::where('trigramme', $trigramme)->exists()) {
+                return $this->responseJson(false, "Le trigramme généré '$trigramme' est déjà utilisé. Choisissez un autre nom.", null, 409);
+            }
+
             $role = Role::create([
-                'name' => $roleName,
+                'name' => $name,
                 'guard_name' => 'web',
+                'trigramme' => $trigramme,
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Rôle créé avec succès.',
-                'data' => $role
-            ], 201);
+            return $this->responseJson(true, 'Rôle créé avec succès.', $role, 201);
 
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur de validation.',
-                'errors' => $e->errors()
-            ], 422);
+            return $this->responseJson(false, 'Erreur de validation.', $e->errors(), 422);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Une erreur est survenue lors de la création du rôle.',
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->responseJson(false, 'Une erreur est survenue lors de la création du rôle.', $e->getMessage(), 500);
         }
     }
 }
