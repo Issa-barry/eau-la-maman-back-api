@@ -83,7 +83,7 @@ Route::get('/agences/getByReference/{reference}', [AgenceShowController::class, 
 Route::put('/agences/updateById/{id}', [AgenceUpdateController::class, 'updateById']);
 Route::delete('/agences/deleteById/{id}', [AgenceDeleteController::class, 'deleteById']);
 
-use App\Http\Controllers\Agence\AgenceStatutController;
+
 
 Route::patch('/agences/{id}/statutUpdate', [AgenceStatutController::class, 'updateStatut']);
 
@@ -139,4 +139,19 @@ Route::get('/roles/{id}/all-users-du-role', [RoleListeUsersDuRoleController::cla
  
 
  
+ /**********************************************************
+ *   
+ * PRODUIT 
+ * 
+ * ********************************************************/
+use App\Http\Controllers\Agence\AgenceStatutController;
+use App\Http\Controllers\Produit\DeleteProduitController;
+use App\Http\Controllers\Produit\ShowProduitController;
+use App\Http\Controllers\Produit\UpdateProduitController;
+use App\Http\Controllers\Produit\CreateProduitController;
  
+Route::post('/produits/create', [CreateProduitController::class, 'store']);
+Route::get('/produits/all', [ShowProduitController::class, 'index']);
+Route::get('/produits/getById/{id}', [ShowProduitController::class, 'getById']);
+Route::put('/produits/updateById/{id}', [UpdateProduitController::class, 'update']);
+Route::delete('/produits/deleteById/{id}', [DeleteProduitController::class, 'deleteById']);
