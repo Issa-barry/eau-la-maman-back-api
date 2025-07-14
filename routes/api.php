@@ -34,8 +34,15 @@ use App\Http\Controllers\Roles\RolePermissions\RolePermissionsRevokePermissionCo
 use App\Http\Controllers\Roles\RolePermissions\RolePermissionsShowController; 
 use App\Http\Controllers\User\UserAffecterAgenceController;
 use App\Http\Controllers\User\UserDesacfecterAgenceController;
-
- 
+use App\Http\Controllers\User\UserStatutController;
+ use App\Http\Controllers\Agence\AgenceStatutController;
+use App\Http\Controllers\Produit\DeleteProduitController;
+use App\Http\Controllers\Produit\ShowProduitController;
+use App\Http\Controllers\Produit\UpdateProduitController;
+use App\Http\Controllers\Produit\CreateProduitController;
+use App\Http\Controllers\Commande\CommandeShowController;
+use App\Http\Controllers\Commande\CommandeStatutController;
+use App\Http\Controllers\Commande\CommandeStoreController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -65,7 +72,7 @@ Route::get('/users/getById/{id}', [ShowUserController::class, 'getById']);
 Route::put('/users/updateById/{id}', [updateUserController::class, 'updateById']);
 Route::delete('/users/delateById/{id}', [DeleteUserController::class, 'delateById']);
 
-use App\Http\Controllers\User\UserStatutController;
+
 
 Route::patch('/users/{id}/statutUpdate', [UserStatutController::class, 'updateStatut']);
 
@@ -144,14 +151,25 @@ Route::get('/roles/{id}/all-users-du-role', [RoleListeUsersDuRoleController::cla
  * PRODUIT 
  * 
  * ********************************************************/
-use App\Http\Controllers\Agence\AgenceStatutController;
-use App\Http\Controllers\Produit\DeleteProduitController;
-use App\Http\Controllers\Produit\ShowProduitController;
-use App\Http\Controllers\Produit\UpdateProduitController;
-use App\Http\Controllers\Produit\CreateProduitController;
+
  
 Route::post('/produits/create', [CreateProduitController::class, 'store']);
 Route::get('/produits/all', [ShowProduitController::class, 'index']);
 Route::get('/produits/getById/{id}', [ShowProduitController::class, 'getById']);
 Route::put('/produits/updateById/{id}', [UpdateProduitController::class, 'update']);
 Route::delete('/produits/deleteById/{id}', [DeleteProduitController::class, 'deleteById']);
+
+ /**********************************************************
+ *   
+ * Commande 
+ * 
+ * ********************************************************/
+
+ 
+Route::prefix('commandes')->group(function () {
+    Route::post('/create', [CommandeStoreController::class, 'store']);
+     Route::get('/all', [CommandeShowController::class, 'all']);
+    Route::get('/showByNumero/{numero}', [CommandeShowController::class, 'showByNumero']); // /api/commandes/numero/CO00000001
+Route::patch('/validation/{numero}/valider', [CommandeStatutController::class, 'valider']);
+Route::patch('/{numero}/majStatut', [CommandeStatutController::class, 'changerStatut']);
+});
