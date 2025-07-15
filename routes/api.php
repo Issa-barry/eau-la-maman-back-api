@@ -46,6 +46,7 @@ use App\Http\Controllers\Commande\CommandeStatutController;
 use App\Http\Controllers\Commande\CommandeStoreController;
 use App\Http\Controllers\Commande\CommandeUpdateController;
 
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/resend-verification-email', [AuthController::class, 'resendVerificationEmail'])->middleware('auth:sanctum');
@@ -183,3 +184,56 @@ Route::delete('/deleteById/{id}', [CommandeDeleteController::class, 'deleteById'
 Route::delete('/deleteByNumero/{numero}', [CommandeDeleteController::class, 'deleteByNumero']);
 
 });
+
+ /**********************************************************
+ *   
+ * Packing 
+ * 
+ * ********************************************************/
+
+
+// use App\Http\Controllers\Packing\{
+//     PackingShowController,
+//     PackingUpdateController,
+//     PackingDeleteController,
+// };
+
+// Route::prefix('packings')->middleware('auth:sanctum')->group(function () {
+//     Route::get('/', PackingShowController::class);
+//     Route::post('/', PackingStoreController::class);
+//     Route::get('/{id}', PackingShowController::class);
+//     Route::put('/{id}', PackingUpdateController::class);
+//     Route::delete('/{id}', PackingDeleteController::class);
+// });
+
+
+// Route::get('/packings/', [PackingShowController::class, 'index']);
+
+ use App\Http\Controllers\Packing\PackingDeleteController;
+use App\Http\Controllers\Packing\PackingShowController;
+use App\Http\Controllers\Packing\PackingUpdateController;
+use App\Http\Controllers\Packing\PackingStoreController;
+
+    Route::post('/packings/create', [PackingStoreController::class, 'store']);
+    Route::get('/packings', [PackingShowController::class, 'index']);
+    Route::get('/packings/all', [PackingShowController::class, 'index']);
+    Route::get('/packings/{id}', [PackingShowController::class, 'show']);
+    Route::put('/packings/update/{id}', [PackingUpdateController::class, 'update']);
+    Route::delete('/packings/{id}', [PackingDeleteController::class, 'destroy']);
+ 
+ /**********************************************************
+ *   
+ * Livraison 
+ * 
+ * ********************************************************/
+
+// use App\Http\Controllers\Livraison\LivraisonShowController;
+
+// Route::prefix('livraisons')->group(function () {
+//     // Route::post('/create', [LivraisonController::class, 'store']);
+//     Route::get('/all', [LivraisonShowController::class, 'index']);
+//      Route::get('/', [LivraisonShowController::class, 'index']);
+//  });
+
+
+
