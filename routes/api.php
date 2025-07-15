@@ -36,6 +36,7 @@ use App\Http\Controllers\User\UserAffecterAgenceController;
 use App\Http\Controllers\User\UserDesacfecterAgenceController;
 use App\Http\Controllers\User\UserStatutController;
  use App\Http\Controllers\Agence\AgenceStatutController;
+use App\Http\Controllers\Commande\CommandeDeleteController;
 use App\Http\Controllers\Produit\DeleteProduitController;
 use App\Http\Controllers\Produit\ShowProduitController;
 use App\Http\Controllers\Produit\UpdateProduitController;
@@ -43,6 +44,7 @@ use App\Http\Controllers\Produit\CreateProduitController;
 use App\Http\Controllers\Commande\CommandeShowController;
 use App\Http\Controllers\Commande\CommandeStatutController;
 use App\Http\Controllers\Commande\CommandeStoreController;
+use App\Http\Controllers\Commande\CommandeUpdateController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -167,9 +169,17 @@ Route::delete('/produits/deleteById/{id}', [DeleteProduitController::class, 'del
 
  
 Route::prefix('commandes')->group(function () {
-    Route::post('/create', [CommandeStoreController::class, 'store']);
-     Route::get('/all', [CommandeShowController::class, 'all']);
-    Route::get('/showByNumero/{numero}', [CommandeShowController::class, 'showByNumero']); // /api/commandes/numero/CO00000001
-Route::patch('/validation/{numero}/valider', [CommandeStatutController::class, 'valider']);
+//creation et modification 
+Route::post('/create', [CommandeStoreController::class, 'store']);
+Route::put('/updateByNumero/{numero}', [CommandeUpdateController::class, 'updateByNumero']);
+// Affichage
+Route::get('/all', [CommandeShowController::class, 'all']);
+Route::get('/showByNumero/{numero}', [CommandeShowController::class, 'showByNumero']); // /api/commandes/numero/CO00000001
+// Validation & statut
+Route::patch('/validation/{numero}', [CommandeStatutController::class, 'valider']);
 Route::patch('/{numero}/majStatut', [CommandeStatutController::class, 'changerStatut']);
+// Supression
+Route::delete('/deleteById/{id}', [CommandeDeleteController::class, 'deleteById']);
+Route::delete('/deleteByNumero/{numero}', [CommandeDeleteController::class, 'deleteByNumero']);
+
 });

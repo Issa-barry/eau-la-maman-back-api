@@ -17,5 +17,7 @@ class Produit extends Model
         'image',
         'statut',
     ];
+
+ 
 }
  
