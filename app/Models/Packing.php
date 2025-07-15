@@ -15,6 +15,7 @@ class Packing extends Model
         'heure_debut',
         'heure_fin',
         'statut',
+        'reference'
     ];
 
     public function user()

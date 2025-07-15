@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('livraisons', function (Blueprint $table) {
            $table->id();
+           $table->string('reference')->unique();
             $table->foreignId('commande_id')->constrained()->onDelete('cascade');
-            $table->foreignId('client_id')->constrained('users'); // client livré
-            $table->integer('quantite');
-            $table->decimal('prix_unitaire', 10, 2);
-            $table->enum('statut', ['livré', 'en_attente', 'annulé'])->default('en_attente');
+            $table->foreignId('client_id')->constrained('users')->onDelete('cascade');
+            $table->date('date_livraison');
+            $table->enum('statut', ['en_cours','livré', 'en_attente', 'annulé'])->default('en_attente');
             $table->timestamps();
         });
     }

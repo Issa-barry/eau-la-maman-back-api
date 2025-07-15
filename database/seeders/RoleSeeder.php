@@ -14,6 +14,9 @@ class RoleSeeder extends Seeder
             ['name' => 'Client',               'trigramme' => 'cli'],
             ['name' => 'Agent',                'trigramme' => 'agt'],
             ['name' => 'Responsable agence',   'trigramme' => 'res'],
+            ['name' => 'Packing',    'trigramme' => 'pac'],
+            ['name' => 'Livreur',    'trigramme' => 'liv'],
+            ['name' => 'Comptable',   'trigramme' => 'com'],
         ];
 
         foreach ($roles as $data) {
@@ -39,6 +42,7 @@ class RoleSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ Les rôles ont été créés avec succès en minuscules !');
+        $this->command->info(' Les rôles ont été créés avec succès en minuscules !');
     }
+    //à lancé en 1er : php artisan db:seed --class=RoleSeeder
 }

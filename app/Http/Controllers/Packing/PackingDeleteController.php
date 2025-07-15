@@ -10,7 +10,7 @@ class PackingDeleteController extends Controller
 {
     use JsonResponseTrait;
 
-    public function __invoke(int $id)
+    public function deleteById(int $id)
     {
         $packing = Packing::find($id);
 

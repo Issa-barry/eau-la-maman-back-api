@@ -219,21 +219,20 @@ use App\Http\Controllers\Packing\PackingStoreController;
     Route::get('/packings/all', [PackingShowController::class, 'index']);
     Route::get('/packings/{id}', [PackingShowController::class, 'show']);
     Route::put('/packings/update/{id}', [PackingUpdateController::class, 'update']);
-    Route::delete('/packings/{id}', [PackingDeleteController::class, 'destroy']);
+    Route::delete('/packings/deleteById/{id}', [PackingDeleteController::class, 'deleteById']);
  
  /**********************************************************
  *   
  * Livraison 
  * 
  * ********************************************************/
+use App\Http\Controllers\Livraison\LivraisonShowController;
+use App\Http\Controllers\Livraison\LivraisonUpdateController;
+use App\Http\Controllers\Livraison\LivraisonValidationController;
+use App\Http\Controllers\Livraison\LivraisonDeleteController;
 
-// use App\Http\Controllers\Livraison\LivraisonShowController;
-
-// Route::prefix('livraisons')->group(function () {
-//     // Route::post('/create', [LivraisonController::class, 'store']);
-//     Route::get('/all', [LivraisonShowController::class, 'index']);
-//      Route::get('/', [LivraisonShowController::class, 'index']);
-//  });
-
-
-
+Route::get('/livraisons/all', [LivraisonShowController::class, 'index']); 
+Route::get('/livraisons/byId/{id}', [LivraisonShowController::class, 'show']); 
+Route::post('/livraisons/valider', [LivraisonValidationController::class, 'valider']); 
+Route::put('/livraisons/updateById/{id}', [LivraisonUpdateController::class, 'update']);
+Route::delete('/livraisons/deleteById/{id}', LivraisonDeleteController::class);

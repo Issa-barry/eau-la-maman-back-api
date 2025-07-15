@@ -13,11 +13,15 @@ class PackingStoreController extends Controller
 {
     use JsonResponseTrait;
 
+    /**
+     * Créer un nouveau packing.
+     */
     public function store(Request $request)
     {
         try {
+            // Validation
             $validated = $request->validate([
-                'user_id' => 'required|exists:users,id', // Ajouté ici
+                'user_id' => 'required|exists:users,id',
                 'date' => 'required|date',
                 'heure_debut' => 'required',
                 'heure_fin' => 'nullable',
@@ -29,26 +33,33 @@ class PackingStoreController extends Controller
 
             DB::beginTransaction();
 
+            // Générer une référence unique
+            $reference = $this->generateReference();
+
+            // Création du packing
             $packing = Packing::create([
-                'user_id' => $validated['user_id'], // Utilisé ici
+                'reference' => $reference,
+                'user_id' => $validated['user_id'],
                 'date' => $validated['date'],
                 'heure_debut' => $validated['heure_debut'],
                 'heure_fin' => $validated['heure_fin'],
                 'statut' => $validated['statut'],
             ]);
 
+            // Création des lignes
             foreach ($validated['lignes'] as $ligne) {
                 $packing->lignes()->create($ligne);
             }
 
             DB::commit();
 
-return $this->responseJson(true, 'Packing créé avec succès.', $packing->load(['user', 'lignes.produit']));
+            return $this->responseJson(true, 'Packing créé avec succès.', $packing->load(['user', 'lignes.produit']));
 
         } catch (ValidationException $e) {
             return $this->responseJson(false, 'Erreur de validation.', [
                 'errors' => $e->errors()
             ], 422);
+
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -56,5 +67,15 @@ return $this->responseJson(true, 'Packing créé avec succès.', $packing->load(
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Génère une référence unique pour un packing.
+     */
+    protected function generateReference(): string
+    {
+        $date = now()->format('Ymd');
+        $count = Packing::whereDate('created_at', today())->count() + 1;
+        return 'PK-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 }

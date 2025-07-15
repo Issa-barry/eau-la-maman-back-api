@@ -25,6 +25,7 @@ class Commande extends Model
         return $this->belongsTo(User::class, 'contact_id');
     }
 
+
     public function lignes()
     {
         return $this->hasMany(CommandeLigne::class);

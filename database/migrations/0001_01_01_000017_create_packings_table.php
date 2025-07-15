@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('packings', function (Blueprint $table) {
             $table->id();
+            $table->string('reference')->unique();
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // celui qui fait le packing
             $table->date('date');
             $table->time('heure_debut');
