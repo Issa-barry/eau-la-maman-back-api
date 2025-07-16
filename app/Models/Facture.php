@@ -10,7 +10,7 @@ class Facture extends Model
     use HasFactory;
 
     protected $fillable = [
-         'type',
+        'type',
         'statut',
         'envoye',
         'nom_societe',

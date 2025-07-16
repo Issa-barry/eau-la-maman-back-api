@@ -217,7 +217,7 @@ use App\Http\Controllers\Packing\PackingStoreController;
     Route::post('/packings/create', [PackingStoreController::class, 'store']);
     Route::get('/packings', [PackingShowController::class, 'index']);
     Route::get('/packings/all', [PackingShowController::class, 'index']);
-    Route::get('/packings/{id}', [PackingShowController::class, 'show']);
+    Route::get('/packings/getById/{id}', [PackingShowController::class, 'show']);
     Route::put('/packings/update/{id}', [PackingUpdateController::class, 'update']);
     Route::delete('/packings/deleteById/{id}', [PackingDeleteController::class, 'deleteById']);
  
