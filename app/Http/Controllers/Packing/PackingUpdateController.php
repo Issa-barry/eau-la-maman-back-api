@@ -31,7 +31,7 @@ class PackingUpdateController extends Controller
                 'statut' => 'required|in:brouillon,en_cours,validé,annulé',
                 'lignes' => 'required|array|min:1',
                 'lignes.*.produit_id' => 'required|exists:produits,id',
-                'lignes.*.quantite_utilisee' => 'required|integer|min:1',
+                'lignes.*.quantite_packed' => 'required|integer|min:1',
             ]);
 
             DB::beginTransaction();

@@ -45,7 +45,7 @@ use App\Http\Controllers\Commande\CommandeShowController;
 use App\Http\Controllers\Commande\CommandeStatutController;
 use App\Http\Controllers\Commande\CommandeStoreController;
 use App\Http\Controllers\Commande\CommandeUpdateController;
-
+ 
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -236,3 +236,48 @@ Route::get('/livraisons/byId/{id}', [LivraisonShowController::class, 'show']);
 Route::post('/livraisons/valider', [LivraisonValidationController::class, 'valider']); 
 Route::put('/livraisons/updateById/{id}', [LivraisonUpdateController::class, 'update']);
 Route::delete('/livraisons/deleteById/{id}', LivraisonDeleteController::class);
+
+ /**********************************************************
+ *   
+ * Livraison 
+ * 
+ * ********************************************************/
+
+use App\Http\Controllers\Factures\{
+    FactureLivraisonIndexController,
+    FactureLivraisonUpdateController,
+    FactureLivraisonDeleteController,
+    FactureLivraisonCreateController
+};
+
+Route::prefix('factures')->group(function () {
+    Route::get('/', [FactureLivraisonIndexController::class, 'index']);
+    Route::get('/all', [FactureLivraisonIndexController::class, 'index']);
+    Route::get('/getByID/{id}', [FactureLivraisonIndexController::class, 'show']);
+    Route::put('/updateById/{id}', [FactureLivraisonUpdateController::class, 'update']);
+    Route::delete('/deleteById/{id}', [FactureLivraisonDeleteController::class, 'destroy']);
+    Route::post('/create', [FactureLivraisonCreateController::class, 'store']);
+});
+
+ 
+ /**********************************************************
+ *   
+ * Encaissement 
+ * 
+ * ********************************************************/
+use App\Http\Controllers\Encaissement\{
+    EncaissementIndexController,
+    EncaissementShowController,
+    EncaissementStoreController,
+    EncaissementUpdateController,
+    EncaissementDeleteController
+};
+
+Route::prefix('encaissements')->group(function () {
+    Route::get('/', [EncaissementIndexController::class, 'index']);
+    Route::get('/all', [EncaissementIndexController::class, 'index']);
+    Route::get('/{id}', [EncaissementShowController::class, 'show']);
+    Route::post('/create', [EncaissementStoreController::class, 'store']);
+    Route::put('/updateById/{id}', [EncaissementUpdateController::class, 'update']);
+    Route::delete('/{id}', [EncaissementDeleteController::class, 'destroy']);
+});

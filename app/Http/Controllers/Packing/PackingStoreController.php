@@ -25,10 +25,9 @@ class PackingStoreController extends Controller
                 'date' => 'required|date',
                 'heure_debut' => 'required',
                 'heure_fin' => 'nullable',
-                'statut' => 'required|in:brouillon,en_cours,valider',
                 'lignes' => 'required|array|min:1',
                 'lignes.*.produit_id' => 'required|exists:produits,id',
-                'lignes.*.quantite_utilisee' => 'required|integer|min:1',
+                'lignes.*.quantite_packed' => 'required|integer|min:1',
             ]);
 
             DB::beginTransaction();
@@ -36,14 +35,14 @@ class PackingStoreController extends Controller
             // Générer une référence unique
             $reference = $this->generateReference();
 
-            // Création du packing
+            // Création du packing avec statut par défaut 'brouillon'
             $packing = Packing::create([
                 'reference' => $reference,
                 'user_id' => $validated['user_id'],
                 'date' => $validated['date'],
                 'heure_debut' => $validated['heure_debut'],
                 'heure_fin' => $validated['heure_fin'],
-                'statut' => $validated['statut'],
+                'statut' => 'brouillon',
             ]);
 
             // Création des lignes

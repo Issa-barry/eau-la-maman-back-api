@@ -12,7 +12,6 @@ class Livraison extends Model
     protected $fillable = [
         'commande_id',
         'client_id',
-        'quantite',
         'date_livraison',
         'statut',
         'reference',
@@ -78,5 +77,10 @@ class Livraison extends Model
     public function lignes()
     {
         return $this->hasMany(LivraisonLigne::class);
+    }
+
+    public function produits()
+    {
+        return $this->hasManyThrough(Produit::class, LivraisonLigne::class, 'livraison_id', 'id', 'id', 'produit_id');
     }
 }

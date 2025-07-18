@@ -11,7 +11,7 @@ class PackingLigne extends Model
     protected $fillable = [
         'packing_id',
         'produit_id',
-        'quantite_utilisee',
+        'quantite_packed',
     ];
 
     public function produit()

@@ -35,5 +35,9 @@ class Commande extends Model
 {
     return $this->lignes->sum('quantite');
 }
+public function livraisons()
+{
+    return $this->hasMany(Livraison::class);
+}
 
 }
