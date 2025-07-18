@@ -88,7 +88,15 @@ Route::patch('/users/{id}/statutUpdate', [UserStatutController::class, 'updateSt
  * 
  * ********************************************************/
 use App\Http\Controllers\User\Clients\CreateClientController;
+use App\Http\Controllers\User\Clients\DeleteClientController;
+use App\Http\Controllers\User\Clients\ShowClientController;
+use App\Http\Controllers\User\Clients\UpdateClientController;
+
 Route::post('/clients/create', [CreateClientController::class, 'store']);
+Route::get('/clients/all', [ShowClientController::class, 'index']);
+Route::get('/clients/showByReference/{id}', [ShowClientController::class, 'showByReference']);
+Route::put('/clients/updateById/reference', [UpdateClientController::class, 'update']);
+Route::delete('/clients/deleteByReference/{reference}', [DeleteClientController::class, 'destroy']);
 
 
 
