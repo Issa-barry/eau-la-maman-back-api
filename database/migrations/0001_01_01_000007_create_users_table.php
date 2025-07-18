@@ -13,31 +13,45 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('reference', 5)->unique();
-            $table->string('nom_complet');
-            $table->string('phone');
-            $table->string('email')->unique();
+
+            $table->string('reference', 5)->unique();              // Généré automatiquement
+            $table->string('nom_complet');                         // Obligatoire
+            $table->string('phone')->unique();                     // Obligatoire + unique
+            $table->string('email')->nullable()->unique();         // Facultatif pour les clients
+
             $table->timestamp('email_verified_at')->nullable();
-            $table->foreignId('adresse_id')->constrained('adresses')->onDelete('cascade');
+
+            $table->foreignId('adresse_id')
+                ->nullable()
+                ->constrained('adresses')
+                ->onDelete('cascade');                             // Adresse facultative
+
             $table->enum('statut', ['active', 'attente', 'bloque', 'archive'])->default('attente');
-            $table->date('date_naissance')->default('9999-12-31');
+
+            $table->date('date_naissance')->nullable();
             $table->enum('civilite', ['Mr', 'Mme', 'Mlle', 'Autre'])->default('Autre');
-            $table->string('password'); 
-            $table->foreignId('role_id')->constrained('roles')->onDelete('restrict')->default(1);
-    
-            // Ajout de la clé étrangère vers la table agences
-$table->unsignedBigInteger('agence_id')->nullable(); // sans foreign key ici
-    
-            $table->rememberToken(); 
+
+            $table->string('password')->nullable();                // Facultatif pour les clients
+
+           $table->foreignId('role_id')
+            ->nullable()
+            ->default(2) // 2 = client
+            ->constrained('roles')
+            ->onDelete('set null');
+                                     // Rôle client par défaut
+
+            $table->unsignedBigInteger('agence_id')->nullable();   // Agence liée si employé
+
+            $table->rememberToken();
             $table->timestamps();
         });
-    
+
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
-    
+
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
@@ -47,7 +61,7 @@ $table->unsignedBigInteger('agence_id')->nullable(); // sans foreign key ici
             $table->integer('last_activity')->index();
         });
     }
-    
+
     /**
      * Reverse the migrations.
      */

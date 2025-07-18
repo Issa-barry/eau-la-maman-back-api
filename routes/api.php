@@ -45,7 +45,7 @@ use App\Http\Controllers\Commande\CommandeShowController;
 use App\Http\Controllers\Commande\CommandeStatutController;
 use App\Http\Controllers\Commande\CommandeStoreController;
 use App\Http\Controllers\Commande\CommandeUpdateController;
- 
+
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -78,6 +78,18 @@ Route::delete('/users/delateById/{id}', [DeleteUserController::class, 'delateByI
 
 
 Route::patch('/users/{id}/statutUpdate', [UserStatutController::class, 'updateStatut']);
+
+
+
+
+/**********************************************************
+ *   
+ * CLIENT  
+ * 
+ * ********************************************************/
+use App\Http\Controllers\User\Clients\CreateClientController;
+Route::post('/clients/create', [CreateClientController::class, 'store']);
+
 
 
 
