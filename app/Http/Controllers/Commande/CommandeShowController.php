@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 namespace App\Http\Controllers\Commande;
 
 use App\Http\Controllers\Controller;
@@ -10,22 +11,29 @@ class CommandeShowController extends Controller
     use JsonResponseTrait;
 
     /**
-     * Affiche toutes les commandes
+     * Affiche toutes les commandes avec leurs lignes et livraisons
      */
     public function all()
     {
-        $commandes = Commande::with(['contact', 'lignes.produit'])->get();
+        $commandes = Commande::with([
+            'contact',
+            'lignes.produit',
+            'livraisons.lignes'
+        ])->get();
+
         return $this->responseJson(true, "Liste des commandes", $commandes);
     }
 
     /**
-     * Affiche une commande par son numéro
+     * Affiche une commande par son numéro avec lignes et livraisons
      */
     public function showByNumero(string $numero)
     {
-        $commande = Commande::with(['contact', 'lignes.produit'])
-            ->where('numero', $numero)
-            ->first();
+        $commande = Commande::with([
+            'contact',
+            'lignes.produit',
+            'livraisons.lignes'
+        ])->where('numero', $numero)->first();
 
         if (!$commande) {
             return $this->responseJson(false, "Commande non trouvée", null, 404);

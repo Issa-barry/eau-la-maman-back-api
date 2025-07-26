@@ -4,50 +4,13 @@ namespace App\Http\Controllers\Commande;
 
 use App\Http\Controllers\Controller;
 use App\Models\Commande;
+use App\Models\Livraison;
+use App\Models\LivraisonLigne;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CommandeStatutController extends Controller
 {
-    public function valider($numero)
-    {
-        $commande = Commande::where('numero', $numero)
-            ->with('lignes.produit')
-            ->firstOrFail();
-
-        if ($commande->statut !== 'brouillon') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Seules les commandes en brouillon peuvent être validées.'
-            ], 400);
-        }
-
-        // Vérification du stock
-        foreach ($commande->lignes as $ligne) {
-            $produit = $ligne->produit;
-
-            if ($produit->quantite_stock < $ligne->quantite) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Stock insuffisant pour le produit : {$produit->nom}."
-                ], 400);
-            }
-        }
-
-        // Décrément du stock
-        foreach ($commande->lignes as $ligne) {
-            $produit = $ligne->produit;
-            $produit->decrement('quantite_stock', $ligne->quantite);
-        }
-
-        // Mise à jour du statut
-        $commande->update(['statut' => 'livraison_en_cours']);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Commande validée et stock mis à jour.',
-            'commande' => $commande->fresh('lignes.produit')
-        ]);
-    }
 
     public function changerStatut(Request $request, $numero)
     {

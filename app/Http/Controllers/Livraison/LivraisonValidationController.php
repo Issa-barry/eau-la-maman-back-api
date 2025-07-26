@@ -17,19 +17,16 @@ class LivraisonValidationController extends Controller
 {
     use JsonResponseTrait;
 
-    /**
-     * Valider une livraison depuis une commande et générer une facture.
-     */
     public function valider(Request $request)
     {
         try {
             $validated = $request->validate([
                 'commande_numero' => 'required|exists:commandes,numero',
-                'client_id' => 'required|exists:users,id',
-                'date_livraison' => 'required|date',
-                'produits' => 'required|array|min:1',
+                'client_id'       => 'required|exists:users,id',
+                'date_livraison'  => 'required|date',
+                'produits'        => 'required|array|min:1',
                 'produits.*.produit_id' => 'required|exists:produits,id',
-                'produits.*.quantite' => 'required|integer|min:1',
+                'produits.*.quantite'   => 'required|integer|min:1',
             ]);
         } catch (ValidationException $e) {
             return $this->responseJson(false, 'Erreur de validation.', [
@@ -44,42 +41,33 @@ class LivraisonValidationController extends Controller
                 ->where('numero', $validated['commande_numero'])
                 ->firstOrFail();
 
-            $produitsCommande = $commande->lignes->pluck('produit_id')->toArray();
-            $quantitesCommandees = $commande->lignes->pluck('quantite', 'produit_id')->toArray();
-
-            // Quantités déjà livrées par produit
-            $quantitesLivrees = [];
-            foreach ($commande->livraisons as $liv) {
-                foreach ($liv->lignes as $ligneLivree) {
-                    $pid = $ligneLivree->produit_id;
-                    $quantitesLivrees[$pid] = ($quantitesLivrees[$pid] ?? 0) + $ligneLivree->quantite;
-                }
-            }
-
             $erreurs = [];
 
             foreach ($validated['produits'] as $i => $item) {
                 $produitId = $item['produit_id'];
                 $quantiteLivree = $item['quantite'];
-                $quantiteCommandee = $quantitesCommandees[$produitId] ?? 0;
-                $quantiteDejaLivree = $quantitesLivrees[$produitId] ?? 0;
-                $quantiteRestante = $quantiteCommandee - $quantiteDejaLivree;
 
-                if (!in_array($produitId, $produitsCommande)) {
+                $ligneCommande = $commande->lignes->firstWhere('produit_id', $produitId);
+
+                if (!$ligneCommande) {
                     $erreurs[] = [
-                        'index' => $i,
+                        'index'      => $i,
                         'produit_id' => $produitId,
-                        'erreur' => 'Le produit ne fait pas partie de la commande.'
+                        'erreur'     => 'Le produit ne fait pas partie de la commande.'
                     ];
-                } elseif ($quantiteLivree > $quantiteRestante) {
+                    continue;
+                }
+
+                $quantiteRestante = $ligneCommande->quantite_restante;
+
+                if ($quantiteLivree > $quantiteRestante) {
                     $erreurs[] = [
-                        'index' => $i,
-                        'produit_id' => $produitId,
-                        'quantite_commandee' => $quantiteCommandee,
-                        'quantite_deja_livree' => $quantiteDejaLivree,
-                        'quantite_restant' => $quantiteRestante,
-                        'quantite_saisie' => $quantiteLivree,
-                        'erreur' => 'Quantité livrée dépasse le restant à livrer.'
+                        'index'                  => $i,
+                        'produit_id'             => $produitId,
+                        'quantite_commandee'     => $ligneCommande->quantite_commandee,
+                        'quantite_restante'      => $quantiteRestante,
+                        'quantite_saisie'        => $quantiteLivree,
+                        'erreur'                 => 'Quantité livrée dépasse le restant à livrer.'
                     ];
                 }
             }
@@ -88,6 +76,7 @@ class LivraisonValidationController extends Controller
                 return $this->responseJson(false, 'Erreurs détectées dans les produits livrés.', $erreurs, 422);
             }
 
+            // Création livraison
             $livraison = Livraison::create([
                 'commande_id'    => $commande->id,
                 'client_id'      => $validated['client_id'],
@@ -99,22 +88,22 @@ class LivraisonValidationController extends Controller
 
             foreach ($validated['produits'] as $item) {
                 $ligneCommande = $commande->lignes->firstWhere('produit_id', $item['produit_id']);
-
-                if (!$ligneCommande) {
-                    throw new \Exception("Produit ID {$item['produit_id']} non trouvé dans la commande.");
-                }
-
                 $prixVente = $ligneCommande->prix_vente;
                 $montant = $prixVente * $item['quantite'];
                 $total += $montant;
 
+                // Création ligne de livraison
                 $livraison->lignes()->create([
                     'produit_id'    => $item['produit_id'],
                     'quantite'      => $item['quantite'],
                     'montant_payer' => $montant,
                 ]);
+
+                // Mise à jour quantité restante
+                $ligneCommande->decrement('quantite_restante', $item['quantite']);
             }
 
+            // Génération facture
             $date = now()->format('Ymd');
             $lastId = FactureLivraison::max('id') + 1;
             $numero = 'FAC-' . $date . '-' . str_pad($lastId, 4, '0', STR_PAD_LEFT);

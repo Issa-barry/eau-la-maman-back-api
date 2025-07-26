@@ -60,17 +60,14 @@ class CommandeStoreController extends Controller
                 'reduction' => $reduction,
             ]);
 
-            $numero = 'CO' . str_pad($commande->id, 8, '0', STR_PAD_LEFT);
-            $commande->update(['numero' => $numero]);
+            $commande->update([
+                'numero' => 'CO' . str_pad($commande->id, 8, '0', STR_PAD_LEFT)
+            ]);
 
             $total = 0;
 
             foreach ($validated['lignes'] as $ligne) {
-                try {
-                    $produit = Produit::findOrFail($ligne['produit_id']);
-                } catch (ModelNotFoundException $e) {
-                    throw new \Exception("Produit non trouvé avec l'ID {$ligne['produit_id']}");
-                }
+                $produit = Produit::findOrFail($ligne['produit_id']);
 
                 $quantite = $ligne['quantite'];
                 $prixVente = isset($ligne['prix_vente']) && is_numeric($ligne['prix_vente'])
@@ -81,15 +78,17 @@ class CommandeStoreController extends Controller
                 $total += $sousTotal;
 
                 CommandeLigne::create([
-                    'commande_id' => $commande->id,
-                    'produit_id' => $produit->id,
-                    'prix_vente' => $prixVente,
-                    'quantite' => $quantite,
+                    'commande_id'        => $commande->id,
+                    'produit_id'         => $produit->id,
+                    'prix_vente'         => $prixVente,
+                    'quantite_commandee' => $quantite,
+                    'quantite_restante'  => $quantite, // On initialise la quantité restante
                 ]);
             }
 
-            $montantFinal = max(0, $total - $reduction);
-            $commande->update(['montant_total' => $montantFinal]);
+            $commande->update([
+                'montant_total' => max(0, $total - $reduction)
+            ]);
 
             DB::commit();
 

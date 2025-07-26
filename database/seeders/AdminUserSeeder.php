@@ -59,6 +59,6 @@ class AdminUserSeeder extends Seeder
 
     /**
      * Coommande : 
-     * php artisan db:seed --class=AdminUserSeeder
+     * 2eme ) php artisan db:seed --class=AdminUserSeeder
      */
 }
