@@ -13,12 +13,13 @@ class FactureLivraisonIndexController extends Controller
     use JsonResponseTrait;
 
     /**
-     * Lister toutes les factures de livraison.
+     * Lister toutes les factures.
      */
     public function index(): JsonResponse
     {
         try {
-            $factures = FactureLivraison::with(['client', 'livraison'])->get();
+            $factures = FactureLivraison::with(['client', 'commande'])->get();
+
             return $this->responseJson(true, 'Liste des factures récupérée avec succès.', $factures);
         } catch (Throwable $e) {
             return $this->responseJson(false, 'Erreur lors de la récupération des factures.', [
@@ -33,7 +34,7 @@ class FactureLivraisonIndexController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $facture = FactureLivraison::with(['client', 'livraison'])->find($id);
+            $facture = FactureLivraison::with(['client', 'commande'])->find($id);
 
             if (!$facture) {
                 return $this->responseJson(false, 'Facture non trouvée.', null, 404);

@@ -16,8 +16,8 @@ class FactureLivraisonUpdateController extends Controller
     {
         try {
             $validated = $request->validate([
-                'statut'      => 'nullable|in:brouillon,partiel,payé,non_payée',
-                'montant_du'  => 'nullable|numeric|min:0',
+                'statut'     => 'nullable|in:brouillon,partiel,payé,impayé',
+                'montant_du' => 'nullable|numeric|min:0',
             ]);
         } catch (ValidationException $e) {
             return $this->responseJson(false, 'Erreur de validation.', $e->errors(), 422);

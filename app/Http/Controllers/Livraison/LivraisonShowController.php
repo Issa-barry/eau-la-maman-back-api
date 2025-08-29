@@ -56,4 +56,35 @@ class LivraisonShowController extends Controller
             ], 500);
         }
     }
+
+    /**
+ * Récupérer les livraisons liées à une commande via son numéro.
+ */
+public function getLivraisonByCommandeNumero(string $numero): JsonResponse
+{
+    try {
+        $livraisons = Livraison::with([
+                'commande.contact', // livreur
+                'client',
+                'lignes.produit'
+            ])
+            ->whereHas('commande', function ($query) use ($numero) {
+                $query->where('numero', $numero);
+            })
+            ->latest()
+            ->get();
+
+        if ($livraisons->isEmpty()) {
+            return $this->responseJson(false, "Aucune livraison trouvée pour la commande $numero.", null, 404);
+        }
+
+        return $this->responseJson(true, "Livraisons de la commande $numero récupérées avec succès.", $livraisons);
+
+    } catch (\Throwable $e) {
+        return $this->responseJson(false, 'Erreur lors de la récupération des livraisons de la commande.', [
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
 }

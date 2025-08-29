@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 use Exception;
 
 class UpdateClientController extends Controller
-{
+{ 
     use JsonResponseTrait;
 
     public function update(Request $request, int $id)

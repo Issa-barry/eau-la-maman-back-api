@@ -5,21 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-
 class FactureLivraison extends Model
 {
     use HasFactory;
-    const STATUT_BROUILLON   = 'brouillon';
-    const STATUT_PARTIEL     = 'partiel';
-    const STATUT_PAYE        = 'payé';
-    const STATUT_NON_PAYEE   = 'non_payée';
 
+    const STATUT_BROUILLON = 'brouillon';
+    const STATUT_PARTIEL   = 'partiel';
+    const STATUT_PAYE      = 'payé';
+    const STATUT_IMPAYE    = 'impayé';
 
     protected $table = 'facture_livraisons';
 
     protected $fillable = [
         'client_id',
-        'livraison_id',
+        'commande_id',   // <-- remplace livraison_id
         'montant_du',
         'numero',
         'total',
@@ -31,9 +30,9 @@ class FactureLivraison extends Model
         return $this->belongsTo(User::class, 'client_id');
     }
 
-    public function livraison()
+    public function commande()
     {
-        return $this->belongsTo(Livraison::class);
+        return $this->belongsTo(Commande::class, 'commande_id');
     }
 
     public function encaissements()
