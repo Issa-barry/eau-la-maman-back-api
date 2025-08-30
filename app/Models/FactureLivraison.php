@@ -17,18 +17,13 @@ class FactureLivraison extends Model
     protected $table = 'facture_livraisons';
 
     protected $fillable = [
-        'client_id',
         'commande_id',   // <-- remplace livraison_id
         'montant_du',
         'numero',
         'total',
         'statut',
     ];
-
-    public function client()
-    {
-        return $this->belongsTo(User::class, 'client_id');
-    }
+ 
 
     public function commande()
     {

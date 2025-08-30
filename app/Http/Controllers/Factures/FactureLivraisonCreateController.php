@@ -60,8 +60,7 @@ class FactureLivraisonCreateController extends Controller
             // Étape 7 : Créer la facture
             $facture = FactureLivraison::create([
                 'numero'      => $numero,
-                'client_id'   => $commande->contact_id,
-                'commande_id' => $commande->id,
+                 'commande_id' => $commande->id,
                 'total'       => $total,
                 'montant_du'  => $total,
                 'statut'      => FactureLivraison::STATUT_BROUILLON,

@@ -14,8 +14,7 @@ return new class extends Migration
         Schema::create('facture_livraisons', function (Blueprint $table) {
              $table->id();
              $table->string('numero')->unique();
-            $table->foreignId('client_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('commande_id')->constrained('commandes')->onDelete('cascade');
+             $table->foreignId('commande_id')->constrained('commandes')->onDelete('cascade');
             $table->decimal('montant_du', 12, 2)->default(0);
             $table->decimal('total', 12, 2);
             $table->enum('statut', ['brouillon', 'partiel', 'payé', 'impayé'])->default('brouillon');
