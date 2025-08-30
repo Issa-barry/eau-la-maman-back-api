@@ -19,8 +19,7 @@ class LivraisonShowController extends Controller
         try {
             $livraisons = Livraison::with([
                 'commande.contact',     // livreur
-                'client',
-                'lignes.produit'
+                 'lignes.produit'
             ])->latest()->get();
 
             return $this->responseJson(true, 'Liste des livraisons récupérée avec succès.', $livraisons);
@@ -40,8 +39,7 @@ class LivraisonShowController extends Controller
         try {
             $livraison = Livraison::with([
                 'commande.contact',
-                'client',
-                'lignes.produit'
+                 'lignes.produit'
             ])->find($id);
 
             if (!$livraison) {
@@ -65,8 +63,7 @@ public function getLivraisonByCommandeNumero(string $numero): JsonResponse
     try {
         $livraisons = Livraison::with([
                 'commande.contact', // livreur
-                'client',
-                'lignes.produit'
+                 'lignes.produit'
             ])
             ->whereHas('commande', function ($query) use ($numero) {
                 $query->where('numero', $numero);

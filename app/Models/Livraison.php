@@ -43,4 +43,10 @@ class Livraison extends Model
         $count = self::whereDate('created_at', today())->count() + 1;
         return 'LIV-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
+
+    public function lignes()
+{
+    return $this->hasMany(LivraisonLigne::class);
+}
+
 }

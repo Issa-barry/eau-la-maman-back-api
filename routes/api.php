@@ -191,6 +191,7 @@ use App\Http\Controllers\Commande\CommandeUpdateController;
 use App\Http\Controllers\Commande\CommandeDeleteController;
 use App\Http\Controllers\Commande\CommandeValiderController;
  
+ 
 Route::prefix('commandes')->group(function () {
 //creation et modification 
 Route::post('/create', [CommandeStoreController::class, 'store']);
@@ -244,7 +245,7 @@ use App\Http\Controllers\Packing\PackingValidationController;
     Route::put('/packings/update/{id}', [PackingUpdateController::class, 'update']);
     Route::delete('/packings/deleteById/{id}', [PackingDeleteController::class, 'deleteById']);
     Route::put('/packings/{id}/valider', [PackingValidationController::class, 'valider']);
-
+ 
  
  /**********************************************************
  *   
