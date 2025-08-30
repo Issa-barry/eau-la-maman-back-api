@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Commande;
 
 use App\Http\Controllers\Controller;
 use App\Models\Commande;
-use App\Models\Facture;
+use App\Models\FactureLivraison;
 use App\Models\FactureLigne;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use App\Traits\JsonResponseTrait;
 
 class CommandeValiderController extends Controller
@@ -15,8 +14,9 @@ class CommandeValiderController extends Controller
     use JsonResponseTrait;
 
     /**
-     * Valide la commande, ne crée PAS de livraison,
-     * mais génère automatiquement une facture (brouillon/en_attente_paiement).
+     * Valide la commande (contrôles + décrément stock),
+     * bascule la commande en "livraison_en_cours",
+     * puis génère la facture (statut brouillon) sur les quantités réellement chargées si dispo.
      */
     public function valider($numero)
     {
@@ -28,79 +28,85 @@ class CommandeValiderController extends Controller
             return $this->responseJson(false, 'Seules les commandes en brouillon peuvent être validées.', null, 400);
         }
 
-        // Vérifs basiques (quantité et stock)
+        // 1) Contrôles préalables quantités/stock
         foreach ($commande->lignes as $ligne) {
-            $produit  = $ligne->produit;
-            $quantite = $ligne->quantite_commandee;
+            // Priorité à quantite_chargee si tu l'utilises, sinon quantite_commandee
+            $qte = (float) ($ligne->quantite_chargee ?? $ligne->quantite_commandee);
+            $produit = $ligne->produit;
 
-            if (!is_numeric($quantite) || $quantite <= 0) {
+            if (!is_numeric($qte) || $qte <= 0) {
                 return $this->responseJson(false, "Quantité invalide pour le produit : {$produit->nom}", [
-                    'quantite' => $quantite
+                    'quantite' => $qte
                 ], 400);
             }
-
-            if ($produit->quantite_stock < $quantite) {
+            if ($produit->quantite_stock < $qte) {
                 return $this->responseJson(false, "Stock insuffisant pour le produit : {$produit->nom}", null, 400);
             }
+        }
+
+        // 2) Empêcher la double facturation
+        if (FactureLivraison::where('commande_id', $commande->id)->exists()) {
+            return $this->responseJson(false, 'Une facture existe déjà pour cette commande.', null, 409);
         }
 
         DB::beginTransaction();
 
         try {
-            // 1) (option) décrémenter le stock dès validation.
-            //    Si tu préfères décrémenter au moment de l'encaissement, commente ce bloc.
+            // 3) Décrément stock sur la quantité réellement chargée si présente
             foreach ($commande->lignes as $ligne) {
-                $ligne->produit->decrement('quantite_stock', $ligne->quantite_commandee);
+                $qte = (float) ($ligne->quantite_chargee ?? $ligne->quantite_commandee);
+                if ($qte > 0) {
+                    $ligne->produit->decrement('quantite_stock', $qte);
+                }
             }
 
-            // 2) Mettre à jour le statut de la commande pour refléter la facturation
-            $commande->update(['statut' => 'facturation_en_cours']);
+            // 4) Mettre le statut commande = livraison_en_cours (ENUM existant)
+            $commande->update(['statut' => 'livraison_en_cours']);
 
-            // 3) Créer la facture (par ex. statut "en_attente_paiement")
-            $numeroFacture = $this->generateNumeroFacture();
+            // 5) Générer le numéro de facture
+            $date = now()->format('Ymd');
+            $last = (int) (FactureLivraison::max('id') ?? 0) + 1;
+            $numeroFacture = 'FAC-' . $date . '-' . str_pad($last, 4, '0', STR_PAD_LEFT);
 
-            $facture = Facture::create([
-                'commande_id'    => $commande->id,
-                'client_id'      => $commande->contact_id,
-                'numero'         => $numeroFacture,
-                'date_facture'   => now(),
-                'statut'         => 'en_attente_paiement', // ou 'brouillon' selon ton flux
-                'total_ht'       => 0,
-                'total_tva'      => 0,
-                'total_ttc'      => 0,
+            // 6) Créer la facture (statut brouillon)
+            $facture = FactureLivraison::create([
+                'commande_id' => $commande->id,
+                'client_id'   => $commande->contact_id,
+                'numero'      => $numeroFacture,
+                'montant_du'  => 0,
+                'total'       => 0,
+                'statut'      => FactureLivraison::STATUT_BROUILLON,
             ]);
 
-            // 4) Créer les lignes de facture à partir des lignes de commande
-            $totalHT  = 0;
-            $totalTVA = 0;
-            $tauxTVA  = config('app.taux_tva', 0); // ex: 0.18 (18%). Mets 0 si non applicable.
-
+            // 7) Lignes de facture
+            $total = 0;
             foreach ($commande->lignes as $ligne) {
-                $qte   = (float) $ligne->quantite_commandee;
-                $puHT  = (float) $ligne->prix_vente; // suppose prix_vente HT; adapte si TTC
-                $montantHT  = $qte * $puHT;
-                $montantTVA = $montantHT * $tauxTVA;
-                $montantTTC = $montantHT + $montantTVA;
+                $qte  = (float) ($ligne->quantite_chargee ?? $ligne->quantite_commandee);
+                $puHT = (float) $ligne->prix_vente;
+                $mont = $qte * $puHT;
 
                 FactureLigne::create([
-                    'facture_id'   => $facture->id,
-                    'produit_id'   => $ligne->produit_id,
-                    'quantite'     => $qte,
+                    'facture_id'       => $facture->id,
+                    'produit_id'       => $ligne->produit_id,
+                    'quantite'         => $qte,
                     'prix_unitaire_ht' => $puHT,
-                    'montant_ht'   => $montantHT,
-                    'montant_tva'  => $montantTVA,
-                    'montant_ttc'  => $montantTTC,
+                    'montant_ht'       => $mont,
+                    'montant_ttc'      => $mont, // pas de TVA ici
                 ]);
 
-                $totalHT  += $montantHT;
-                $totalTVA += $montantTVA;
+                $total += $mont;
             }
 
-            // 5) Finaliser les totaux de la facture
+            // 8) Refuser une facture à 0 (rien chargé)
+            if ($total <= 0) {
+                DB::rollBack();
+                return $this->responseJson(false, "Impossible de générer une facture : total égal à 0.", null, 400);
+            }
+
+            // 9) Mettre à jour totaux facture
             $facture->update([
-                'total_ht'  => $totalHT,
-                'total_tva' => $totalTVA,
-                'total_ttc' => $totalHT + $totalTVA,
+                'montant_du' => $total,
+                'total'      => $total,
             ]);
 
             DB::commit();
@@ -116,15 +122,5 @@ class CommandeValiderController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
-    }
-
-    /**
-     * Génère un numéro de facture unique.
-     * Adapte la logique si tu veux un format séquentiel.
-     */
-    private function generateNumeroFacture(): string
-    {
-        // Format: FAC-YYYYMMDD-xxxx (uuid court)
-        return 'FAC-' . now()->format('Ymd') . '-' . Str::upper(Str::random(6));
     }
 }

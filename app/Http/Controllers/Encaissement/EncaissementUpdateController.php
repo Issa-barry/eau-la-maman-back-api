@@ -25,8 +25,11 @@ class EncaissementUpdateController extends Controller
         try {
             $validated = $request->validate([
                 'montant'           => 'required|numeric|min:1',
-                'mode_paiement'     => 'nullable|string|in:espèces,orange-money,dépot-banque',
+                // la colonne en DB est "mode"
+                'mode'              => 'nullable|string|in:espèces,orange-money,dépot-banque',
                 'date_encaissement' => 'nullable|date',
+                'reference'         => 'nullable|string|max:191',
+                'commentaire'       => 'nullable|string',
             ]);
         } catch (ValidationException $e) {
             return $this->responseJson(false, 'Données invalides.', $e->errors(), 422);
@@ -35,34 +38,41 @@ class EncaissementUpdateController extends Controller
         DB::beginTransaction();
 
         try {
-            $facture = $encaissement->facture;
+            // on a besoin de la facture liée pour recalculer les totaux
+            $facture = $encaissement->facture; // belongsTo(FactureLivraison::class,'facture_id')
 
-            //  Refuser la modification si la facture est déjà soldée
-            if ($facture->montant_du == 0) {
-                return $this->responseJson(false, 'Impossible de modifier un encaissement : la facture est déjà soldée (montant dû = 0), même si son statut est "' . $facture->statut . '".', null, 422);
+            // empêcher la modif si déjà soldée
+            if ((float)$facture->montant_du === 0.0) {
+                return $this->responseJson(false, "Impossible de modifier un encaissement : la facture est déjà soldée (montant dû = 0), statut « {$facture->statut} ».", null, 422);
             }
 
-            //  Recalculer le total encaissé sans l'encaissement actuel
-            $autres = $facture->encaissements()->where('id', '!=', $encaissement->id)->sum('montant');
-            $nouveauTotal = $autres + $validated['montant'];
+            // total encaissé hors encaissement courant
+            $autres = (float) $facture->encaissements()
+                ->where('id', '!=', $encaissement->id)
+                ->sum('montant');
 
-            // Refuser si le nouveau total dépasse le total de la facture
-            if ($nouveauTotal > $facture->total) {
+            $nouveauTotal = $autres + (float)$validated['montant'];
+
+            // refuse si dépasse le total facture
+            if ($nouveauTotal > (float)$facture->total) {
                 return $this->responseJson(false, 'Le montant total encaissé dépasserait le total de la facture.', [
-                    'total'        => (float) $facture->total,
+                    'total'           => (float) $facture->total,
                     'encaisse_actuel' => (float) $encaissement->montant,
                     'encaisse_total'  => (float) $autres,
-                    'montant_nouveau' => (float) $validated['montant']
+                    'montant_nouveau' => (float) $validated['montant'],
                 ], 422);
             }
 
-            //  Mise à jour
+            // mise à jour de l'encaissement
             $encaissement->update([
                 'montant'           => $validated['montant'],
-                'mode_paiement'     => $validated['mode_paiement'] ?? $encaissement->mode_paiement,
+                'mode'              => $validated['mode'] ?? $encaissement->mode,
                 'date_encaissement' => $validated['date_encaissement'] ?? $encaissement->date_encaissement,
+                'reference'         => $validated['reference'] ?? $encaissement->reference,
+                'commentaire'       => $validated['commentaire'] ?? $encaissement->commentaire,
             ]);
 
+            // recalcule le statut/montant dû
             $this->updateFactureStatut($facture);
 
             DB::commit();
@@ -70,21 +80,22 @@ class EncaissementUpdateController extends Controller
             return $this->responseJson(true, 'Encaissement mis à jour.', [
                 'id'                => $encaissement->id,
                 'facture_id'        => $encaissement->facture_id,
-                'montant'           => $encaissement->montant,
-                'mode_paiement'     => $encaissement->mode_paiement,
+                'montant'           => (float) $encaissement->montant,
+                'mode'              => $encaissement->mode,
+                'reference'         => $encaissement->reference,
                 'date_encaissement' => $encaissement->date_encaissement,
                 'created_at'        => $encaissement->created_at,
                 'updated_at'        => $encaissement->updated_at,
                 'facture'           => [
-                    'id'           => $facture->id,
-                    'numero'       => $facture->numero,
-                    'client_id'    => $facture->client_id,
-                    'livraison_id' => $facture->livraison_id,
-                    'total'        => (float) $facture->total,
-                    'montant_du'   => (float) $facture->montant_du,
-                    'statut'       => $facture->statut,
-                    'created_at'   => $facture->created_at,
-                    'updated_at'   => $facture->updated_at,
+                    'id'          => $facture->id,
+                    'numero'      => $facture->numero,
+                    'client_id'   => $facture->client_id,
+                    'commande_id' => $facture->commande_id, // <-- OK
+                    'total'       => (float) $facture->total,
+                    'montant_du'  => (float) $facture->montant_du,
+                    'statut'      => $facture->statut,
+                    'created_at'  => $facture->created_at,
+                    'updated_at'  => $facture->updated_at,
                 ]
             ]);
         } catch (Throwable $e) {
@@ -95,17 +106,17 @@ class EncaissementUpdateController extends Controller
         }
     }
 
-    private function updateFactureStatut(FactureLivraison $facture)
+    private function updateFactureStatut(FactureLivraison $facture): void
     {
-        $totalEncaisse = $facture->encaissements()->sum('montant');
-        $facture->montant_du = max(0, $facture->total - $totalEncaisse);
+        $totalEncaisse = (float) $facture->encaissements()->sum('montant');
+        $facture->montant_du = max(0, (float)$facture->total - $totalEncaisse);
 
-        if ($facture->montant_du == 0) {
+        if ((float)$facture->montant_du === 0.0) {
             $facture->statut = FactureLivraison::STATUT_PAYE;
         } elseif ($totalEncaisse > 0) {
             $facture->statut = FactureLivraison::STATUT_PARTIEL;
         } else {
-            $facture->statut = FactureLivraison::STATUT_NON_PAYEE;
+            $facture->statut = FactureLivraison::STATUT_IMPAYE; // <-- nouveau nom
         }
 
         $facture->save();

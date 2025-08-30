@@ -11,24 +11,21 @@ class Livraison extends Model
 
     protected $fillable = [
         'commande_id',
-        'client_id',
+        'quantite_livree',
         'date_livraison',
-        'statut',
         'reference',
     ];
 
-    protected $appends = ['quantite_total'];
-
     /**
-     * Attribut calculé : somme des quantités des lignes.
+     * Relation avec la commande liée à cette livraison.
      */
-    public function getQuantiteTotalAttribute()
+    public function commande()
     {
-        return $this->lignes->sum('quantite');
+        return $this->belongsTo(Commande::class);
     }
 
     /**
-     * Génération automatique de la référence à la création.
+     * Génère une référence unique pour la livraison.
      */
     protected static function booted()
     {
@@ -38,49 +35,12 @@ class Livraison extends Model
     }
 
     /**
-     * Génère une référence unique du type LIV-YYYYMMDD-XXXX
+     * Génère une référence unique pour chaque livraison.
      */
     public static function generateReference()
     {
         $date = now()->format('Ymd');
         $count = self::whereDate('created_at', today())->count() + 1;
-        return 'LV-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * La commande liée à cette livraison.
-     */
-    public function commande()
-    {
-        return $this->belongsTo(Commande::class);
-    }
-
-    /**
-     * Le client qui a reçu la livraison.
-     */
-    public function client()
-    {
-        return $this->belongsTo(User::class, 'client_id');
-    }
-
-    /**
-     * Le livreur (via contact_id de la commande).
-     */
-    public function livreur()
-    {
-        return $this->commande?->contact;
-    }
-
-    /**
-     * Les lignes de produits livrés.
-     */
-    public function lignes()
-    {
-        return $this->hasMany(LivraisonLigne::class);
-    }
-
-    public function produits()
-    {
-        return $this->hasManyThrough(Produit::class, LivraisonLigne::class, 'livraison_id', 'id', 'id', 'produit_id');
+        return 'LIV-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 }

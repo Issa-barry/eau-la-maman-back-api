@@ -1,154 +1,84 @@
 <?php
+
 namespace App\Http\Controllers\Livraison;
 
 use App\Http\Controllers\Controller;
 use App\Models\Commande;
-use App\Models\FactureLivraison;
 use App\Models\Livraison;
-use App\Traits\JsonResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class LivraisonValidationController extends Controller
 {
-    use JsonResponseTrait;
-
-    public function valider(Request $request)
+    /**
+     * Valide la livraison d'une commande.
+     */
+    public function valider(Request $request, string $commandeNumero)
     {
         try {
+            // Validation des données de la requête
             $validated = $request->validate([
-                'commande_numero' => 'required|exists:commandes,numero',
-                'client_id'       => 'required|exists:users,id',
-                'date_livraison'  => 'required|date',
-                'produits'        => 'required|array|min:1',
-                'produits.*.produit_id' => 'required|exists:produits,id',
-                'produits.*.quantite'   => 'required|integer|min:0',
+                'date_livraison' => 'required|date', // Date de la livraison
+                'quantite_livree' => 'required|integer|min:1', // Quantité livrée
             ]);
         } catch (ValidationException $e) {
-            return $this->responseJson(false, 'Données invalides.', $e->errors(), 422);
+            return response()->json(['error' => 'Données invalides', 'details' => $e->errors()], 422);
         }
 
         DB::beginTransaction();
 
         try {
-            $commande = Commande::with('lignes')->where('numero', $validated['commande_numero'])->firstOrFail();
+            // Récupérer la commande par son numéro
+            $commande = Commande::with('lignes') // Pas besoin de 'produit' ici
+                ->where('numero', $commandeNumero)
+                ->firstOrFail();
 
-            // Vérifier si la commande est déjà totalement livrée
-            $resteTotal = $commande->lignes->sum('quantite_restante');
-            if ($resteTotal === 0) {
-                return $this->responseJson(false, 'Cette commande a déjà été totalement livrée.', null, 422);
+            // Vérifier que la commande a bien une ligne associée et la quantité restante
+            $ligneCommande = $commande->lignes->first();
+            
+            if ($ligneCommande->quantite_restante <= 0) {
+                return response()->json([
+                    'error' => "Cette commande a déjà été entièrement livrée."
+                ], 422);
             }
 
-            $produitsLivrables = [];
-            $erreurs = [];
-
-            foreach ($validated['produits'] as $item) {
-                $produitId = $item['produit_id'];
-                $quantite = $item['quantite'];
-
-                $ligne = $commande->lignes->firstWhere('produit_id', $produitId);
-
-                if (!$ligne) {
-                    $erreurs[] = "Le produit ID {$produitId} ne fait pas partie de la commande.";
-                    continue;
-                }
-
-                if ($ligne->quantite_restante <= 0) {
-                    $erreurs[] = "Le produit ID {$produitId} est déjà totalement livré.";
-                    continue;
-                }
-
-                if ($quantite > $ligne->quantite_restante) {
-                    $erreurs[] = "Quantité à livrer ($quantite) pour le produit ID {$produitId} dépasse le reste à livrer ({$ligne->quantite_restante}).";
-                    continue;
-                }
-
-                if ($quantite > 0) {
-                    $produitsLivrables[] = [
-                        'produit_id' => $produitId,
-                        'quantite'   => $quantite,
-                        'prix_vente' => $ligne->prix_vente,
-                        'ligne'      => $ligne
-                    ];
-                }
+            // Vérifier que la quantité livrée ne dépasse pas la quantité restante
+            if ($validated['quantite_livree'] > $ligneCommande->quantite_restante) {
+                return response()->json([
+                    'error' => "La quantité livrée dépasse la quantité restante de cette commande"
+                ], 422);
             }
 
-            if (count($produitsLivrables) === 0) {
-    $produitsEncoreLivrables = $commande->lignes->filter(fn($l) => $l->quantite_restante > 0);
+            // Créer la livraison
+           // Créer la livraison avec la quantité livrée
+$livraison = Livraison::create([
+    'commande_id' => $commande->id,
+    'date_livraison' => $validated['date_livraison'],
+    'quantite_livree' => $validated['quantite_livree'],  // Assurez-vous que cette donnée est insérée
+]);
 
-    if ($produitsEncoreLivrables->count() > 0) {
-        return $this->responseJson(false,
-            'Les produits sélectionnés sont déjà totalement livrés. Veuillez sélectionner un produit restant à livrer.',
-            $erreurs,
-            422
-        );
-    }
+            // Mise à jour de la ligne de commande (quantité restante)
+            $ligneCommande->decrement('quantite_restante', $validated['quantite_livree']);
 
-    return $this->responseJson(false,
-        'Cette commande a déjà été totalement livrée.',
-        null,
-        422
-    );
-}
-
-
-            $livraison = Livraison::create([
-                'commande_id'    => $commande->id,
-                'client_id'      => $validated['client_id'],
-                'date_livraison' => $validated['date_livraison'],
-                'statut'         => 'livré',
-            ]);
-
-            $montantTotal = 0;
-
-            foreach ($produitsLivrables as $item) {
-                $montant = $item['quantite'] * $item['prix_vente'];
-                $montantTotal += $montant;
-
-                $livraison->lignes()->create([
-                    'produit_id'    => $item['produit_id'],
-                    'quantite'      => $item['quantite'],
-                    'montant_payer' => $montant,
-                ]);
-
-                // Mise à jour de la quantité restante
-                $item['ligne']->decrement('quantite_restante', $item['quantite']);
-            }
-
-            // Génération de la facture
-            $date = now()->format('Ymd');
-            $lastId = FactureLivraison::max('id') + 1;
-            $numero = 'FAC-' . $date . '-' . str_pad($lastId, 4, '0', STR_PAD_LEFT);
-
-            $facture = FactureLivraison::create([
-                'numero'       => $numero,
-                'client_id'    => $validated['client_id'],
-                'livraison_id' => $livraison->id,
-                'total'        => $montantTotal,
-                'montant_du'   => $montantTotal,
-                'statut'       => FactureLivraison::STATUT_BROUILLON,
-            ]);
-
-            // Mise à jour statut commande
-            $resteApresLivraison = $commande->lignes()->sum('quantite_restante');
-            $nouveauStatut = $resteApresLivraison === 0 ? 'livré' : 'livraison_en_cours';
-
+            // Si tout est livré, mise à jour du statut de la commande
+            $nouveauStatut = $ligneCommande->quantite_restante == 0 ? 'livré' : 'livraison_en_cours';
             $commande->update(['statut' => $nouveauStatut]);
 
+            // Commit transaction
             DB::commit();
 
-            return $this->responseJson(true, 'Livraison validée avec succès.', [
-                'livraison' => $livraison->load('lignes.produit'),
-                'facture'   => $facture,
+            return response()->json([
+                'success' => true,
+                'message' => 'Livraison validée avec succès.',
+                'livraison' => $livraison,
                 'commande_statut' => $nouveauStatut,
             ]);
         } catch (\Throwable $e) {
+            // Rollback transaction en cas d'erreur
             DB::rollBack();
 
-            return $this->responseJson(false, 'Erreur serveur.', [
-                'message' => config('app.debug') ? $e->getMessage() : 'Erreur lors de la validation de la livraison.'
-            ], 500);
+            return response()->json(['error' => 'Erreur serveur', 'message' => $e->getMessage()], 500);
         }
     }
 }

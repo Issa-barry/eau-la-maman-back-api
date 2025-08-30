@@ -248,7 +248,7 @@ use App\Http\Controllers\Packing\PackingValidationController;
  
  /**********************************************************
  *   
- * Livraison 
+ * Livraison  
  * 
  * ********************************************************/
 use App\Http\Controllers\Livraison\LivraisonShowController;
@@ -259,7 +259,7 @@ use App\Http\Controllers\Livraison\LivraisonDeleteController;
 Route::get('/livraisons/all', [LivraisonShowController::class, 'index']); 
 Route::get('/livraisons/byId/{id}', [LivraisonShowController::class, 'show']);
 Route::get('/livraisons/getLivraisonByCommandeNumero/{numero}', [LivraisonShowController::class, 'getLivraisonByCommandeNumero']);
-Route::post('/livraisons/valider', [LivraisonValidationController::class, 'valider']); 
+Route::post('/livraisons/valider/{id}', [LivraisonValidationController::class, 'valider']); 
 Route::put('/livraisons/updateById/{id}', [LivraisonUpdateController::class, 'update']);
 Route::delete('/livraisons/deleteById/{id}', LivraisonDeleteController::class);
 
@@ -273,7 +273,8 @@ use App\Http\Controllers\Factures\{
     FactureLivraisonIndexController,
     FactureLivraisonUpdateController,
     FactureLivraisonDeleteController,
-    FactureLivraisonCreateController
+    FactureLivraisonCreateController,
+    FactureLivraisonValidateController
 };
 
 Route::prefix('factures')->group(function () {
@@ -283,6 +284,8 @@ Route::prefix('factures')->group(function () {
     Route::put('/updateById/{id}', [FactureLivraisonUpdateController::class, 'update']);
     Route::delete('/deleteById/{id}', [FactureLivraisonDeleteController::class, 'destroy']);
     Route::post('/create', [FactureLivraisonCreateController::class, 'store']);
+    Route::post('/{id}/valider', [FactureLivraisonValidateController::class, 'validateDraft']);
+
 });
 
  

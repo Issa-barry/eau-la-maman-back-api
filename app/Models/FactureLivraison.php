@@ -32,11 +32,17 @@ class FactureLivraison extends Model
 
     public function commande()
     {
-        return $this->belongsTo(Commande::class, 'commande_id');
+        return $this->belongsTo(commande::class, 'commande_id');
     }
 
     public function encaissements()
     {
         return $this->hasMany(Encaissement::class, 'facture_id');
     }
+
+    public function lignes()
+{
+    return $this->hasMany(FactureLigne::class, 'facture_id');
+}
+
 }

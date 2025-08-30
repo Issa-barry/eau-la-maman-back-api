@@ -12,13 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('livraisons', function (Blueprint $table) {
-           $table->id();
-           $table->string('reference')->unique();
-            $table->foreignId('commande_id')->constrained()->onDelete('cascade');
-            $table->foreignId('client_id')->constrained('users')->onDelete('cascade');
-            $table->date('date_livraison');
-            $table->enum('statut', ['en_cours','livré', 'en_attente', 'annulé'])->default('en_attente');
-            $table->timestamps();
+            $table->id();
+            $table->string('reference')->unique(); // Référence unique de la livraison
+            $table->foreignId('commande_id')->constrained()->onDelete('cascade'); // Référence à la commande
+            $table->integer('quantite_livree'); // Quantité livrée
+            $table->date('date_livraison'); // Date de livraison
+            $table->timestamps(); // Date de création et de mise à jour
         });
     }
 

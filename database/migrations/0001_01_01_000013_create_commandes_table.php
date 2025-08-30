@@ -22,9 +22,7 @@ return new class extends Migration
                 'annulé',
                 'livraison_en_cours',
                 'livré',
-                'a_facturer',
-                'facturation_en_cours',
-                'payé'
+                'cloturé'
             ])->default('brouillon');
             $table->timestamps();
         });
