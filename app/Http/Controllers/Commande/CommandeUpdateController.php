@@ -56,11 +56,12 @@ class CommandeUpdateController extends Controller
             $statutNormalise = isset($commande->statut)
                 ? Str::lower(Str::ascii((string) $commande->statut))
                 : '';
-            if (in_array($statutNormalise, ['livre', 'livree'], true)) {
+            $statutsBloquants = ['livre', 'livree', 'cloture', 'cloturee'];
+            if (in_array($statutNormalise, $statutsBloquants, true)) {
                 DB::rollBack();
                 return $this->responseJson(
                     false,
-                    'Cette commande ne peut pas être modifiée car elle est déjà livrée.',
+                    'Cette commande ne peut pas être modifiée car elle est livrée ou clôturée.',
                     [
                         'statut_commande' => $commande->statut,
                         'numero_commande' => $commande->numero
