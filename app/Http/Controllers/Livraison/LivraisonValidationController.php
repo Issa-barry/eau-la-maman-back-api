@@ -1,4 +1,4 @@
-<?php 
+<?php  
 namespace App\Http\Controllers\Livraison;
 
 use App\Http\Controllers\Controller;
@@ -13,42 +13,41 @@ use Illuminate\Validation\ValidationException;
 class LivraisonValidationController extends Controller
 {
     /**
-     * Valide la livraison d'une commande et génère une facture.
+     * Valide la livraison d'une commande et crée la facture associée.
      */
     public function valider(Request $request, string $commandeNumero)
     {
         try {
             // Validation des données de la requête
             $validated = $request->validate([
-                'date_livraison' => 'required|date', // Date de la livraison
-                'quantite_livree' => 'required|integer|min:1', // Quantité livrée
+                'date_livraison' => 'required|date',  // Date de la livraison
+                'quantite_livree' => 'required|integer|min:1',  // Quantité livrée
             ]);
-        } catch (ValidationException $e) {
-            return response()->json(['error' => 'Données invalides', 'details' => $e->errors()], 422);
-        }
 
-        DB::beginTransaction();
-
-        try {
             // Récupérer la commande par son numéro
-            $commande = Commande::with('lignes') // Pas besoin de 'produit' ici
-                ->where('numero', $commandeNumero)
-                ->firstOrFail();
+            $commande = Commande::where('numero', $commandeNumero)
+                ->with('lignes')  // Charger les lignes associées
+                ->first();
 
-            // Vérifier que la commande a bien une ligne associée et la quantité restante
+            // Vérification si la commande existe
+            if (!$commande) {
+                return response()->json(['error' => 'Commande non trouvée'], 404);
+            }
+
+            // Vérification du statut de la commande (seulement "livraison_en_cours" peut être validé)
+            if ($commande->statut !== 'livraison_en_cours') {
+                return response()->json(['error' => 'Seules les commandes avec le statut "livraison_en_cours" peuvent être validées pour la livraison.'], 422);
+            }
+
+            // Vérification de la quantité livrée
             $ligneCommande = $commande->lignes->first();
-            
             if ($ligneCommande->quantite_restante <= 0) {
-                return response()->json([ 
-                    'error' => "Cette commande a déjà été entièrement livrée."
-                ], 422);
+                return response()->json(['error' => 'Cette commande a déjà été entièrement livrée.'], 422);
             }
 
             // Vérifier que la quantité livrée ne dépasse pas la quantité restante
             if ($validated['quantite_livree'] > $ligneCommande->quantite_restante) {
-                return response()->json([ 
-                    'error' => "La quantité livrée dépasse la quantité restante de cette commande"
-                ], 422);
+                return response()->json(['error' => 'La quantité livrée dépasse la quantité restante de cette commande'], 422);
             }
 
             // Créer la livraison avec la quantité livrée
@@ -61,52 +60,46 @@ class LivraisonValidationController extends Controller
             // Mise à jour de la ligne de commande (quantité restante)
             $ligneCommande->decrement('quantite_restante', $validated['quantite_livree']);
 
-            // Retourner au stock la quantité non livrée
-            $quantiteRetournee = $ligneCommande->quantite_restante; 
-            if ($quantiteRetournee > 0) {
-                // Réintégrer la quantité non livrée dans le stock
-                $produit = $ligneCommande->produit;
-                $produit->increment('quantite_stock', $quantiteRetournee);
-            }
-
-            // Si tout est livré ou retourné au stock, mise à jour du statut de la commande
-            $nouveauStatut = 'livré';
+            // Si tout est livré, mise à jour du statut de la commande
+            $nouveauStatut = $ligneCommande->quantite_restante == 0 ? 'livré' : 'livraison_en_cours';
             $commande->update(['statut' => $nouveauStatut]);
 
-            // Générer une facture de livraison après validation de la livraison
-            $montantTotal = $validated['quantite_livree'] * $ligneCommande->prix_vente;
+            // Mise à jour du stock (si des produits sont retournés)
+            if ($validated['quantite_livree'] < $ligneCommande->quantite_restante) {
+                // Incrémenter le stock pour la quantité retournée
+                $ligneCommande->produit->increment('quantite_stock', $validated['quantite_livree']);
+            }
 
             // Créer la facture de livraison
             $factureLivraison = FactureLivraison::create([
                 'commande_id' => $commande->id,
                 'numero' => 'FAC-' . now()->format('Ymd') . '-' . str_pad(FactureLivraison::max('id') + 1, 4, '0', STR_PAD_LEFT),
-                'montant_du' => $montantTotal,
-                'total' => $montantTotal,
-                'statut' => FactureLivraison::STATUT_BROUILLON, // Facture dans un état brouillon
+                'montant_du' => $validated['quantite_livree'] * $ligneCommande->prix_vente,
+                'total' => $validated['quantite_livree'] * $ligneCommande->prix_vente,
+                'statut' => FactureLivraison::STATUT_BROUILLON, // Facture en statut brouillon
             ]);
 
-            // Créer les lignes de facture pour chaque produit livré
+            // Créer la ligne de facture pour ce produit livré
             FactureLigne::create([
                 'facture_id' => $factureLivraison->id,
                 'produit_id' => $ligneCommande->produit_id,
                 'quantite' => $validated['quantite_livree'],
                 'prix_unitaire_ht' => $ligneCommande->prix_vente,
-                'montant_ht' => $montantTotal,
-                'montant_ttc' => $montantTotal, // pas de TVA ici
+                'montant_ht' => $validated['quantite_livree'] * $ligneCommande->prix_vente,
+                'montant_ttc' => $validated['quantite_livree'] * $ligneCommande->prix_vente, // Pas de TVA ici
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Livraison validée avec succès, facture générée.',
+                'message' => 'Livraison validée et facture générée avec succès.',
                 'livraison' => $livraison,
                 'facture' => $factureLivraison,
                 'commande_statut' => $nouveauStatut,
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
-
             return response()->json(['error' => 'Erreur serveur', 'message' => $e->getMessage()], 500);
         }
     }

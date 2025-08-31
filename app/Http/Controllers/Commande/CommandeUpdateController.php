@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use App\Traits\JsonResponseTrait;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 
 class CommandeUpdateController extends Controller
 {
@@ -48,57 +49,99 @@ class CommandeUpdateController extends Controller
         DB::beginTransaction();
 
         try {
-            $commande = Commande::where('numero', $numero)->firstOrFail();
+            $commande = Commande::where('numero', $numero)->with(['lignes'])->firstOrFail();
 
+            // Vérifier si la commande est livrée (non modifiable)
+            // Normalisation: suppression des accents et mise en minuscule pour éviter les variations ('livré', 'livrée', 'LIVRÉE', etc.)
+            $statutNormalise = isset($commande->statut)
+                ? Str::lower(Str::ascii((string) $commande->statut))
+                : '';
+            if (in_array($statutNormalise, ['livre', 'livree'], true)) {
+                DB::rollBack();
+                return $this->responseJson(
+                    false,
+                    'Cette commande ne peut pas être modifiée car elle est déjà livrée.',
+                    [
+                        'statut_commande' => $commande->statut,
+                        'numero_commande' => $commande->numero
+                    ],
+                    403
+                );
+            }
+
+            // Mettre à jour les informations de base de la commande
             $commande->update([
                 'contact_id' => $validated['contact_id'],
                 'reduction' => $validated['reduction'] ?? 0,
             ]);
 
-            // Supprimer les anciennes lignes
+            // Supprimer les anciennes lignes de commande
             $commande->lignes()->delete();
 
             $total = 0;
 
+            // Créer les nouvelles lignes de commande
             foreach ($validated['lignes'] as $ligne) {
                 $produit = Produit::findOrFail($ligne['produit_id']);
 
                 $quantite = $ligne['quantite'];
                 $prixVente = isset($ligne['prix_vente']) && is_numeric($ligne['prix_vente'])
                     ? floatval($ligne['prix_vente'])
-                    : $produit->prix_vente;
+                    : floatval($produit->prix_vente);
 
                 $sousTotal = $prixVente * $quantite;
                 $total += $sousTotal;
 
+                // Créer la ligne de commande avec les bonnes propriétés
                 CommandeLigne::create([
                     'commande_id' => $commande->id,
                     'produit_id' => $produit->id,
                     'prix_vente' => $prixVente,
-                    'quantite' => $quantite,
+                    'quantite_commandee' => $quantite,
+                    'quantite_restante' => $quantite, // Initialiser la quantité restante
                 ]);
             }
 
-            $montantFinal = max(0, $total - $commande->reduction);
+            // Calculer le montant final avec la réduction
+            $montantFinal = max(0, $total - ($validated['reduction'] ?? 0));
             $commande->update(['montant_total' => $montantFinal]);
 
             DB::commit();
 
+            // Recharger la commande avec ses relations pour la réponse
+            $commandeUpdated = $commande->fresh(['lignes.produit', 'contact']);
+
             return $this->responseJson(
                 true,
                 'Commande mise à jour avec succès',
-                $commande->load('lignes.produit'),
+                $commandeUpdated,
                 200
             );
+
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
-            return $this->responseJson(false, 'Commande introuvable', [], 404);
+            return $this->responseJson(
+                false, 
+                'Commande introuvable', 
+                ['numero' => $numero], 
+                404
+            );
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Log l'erreur pour debug
+            \Log::error('Erreur mise à jour commande: ' . $e->getMessage(), [
+                'numero' => $numero,
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return $this->responseJson(
                 false,
                 'Erreur lors de la mise à jour de la commande',
-                ['error' => $e->getMessage()],
+                [
+                    'error' => $e->getMessage(),
+                    'numero' => $numero
+                ],
                 500
             );
         }

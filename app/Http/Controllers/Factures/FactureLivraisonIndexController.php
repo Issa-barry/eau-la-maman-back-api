@@ -18,7 +18,7 @@ class FactureLivraisonIndexController extends Controller
     public function index(): JsonResponse
     {
         try {
-            $factures = FactureLivraison::with(['client', 'commande'])->get();
+            $factures = FactureLivraison::with(['commande.contact'])->get();
 
             return $this->responseJson(true, 'Liste des factures récupérée avec succès.', $factures);
         } catch (Throwable $e) {
@@ -34,7 +34,7 @@ class FactureLivraisonIndexController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $facture = FactureLivraison::with(['client', 'commande'])->find($id);
+            $facture = FactureLivraison::with(['commande.contact'])->find($id);
 
             if (!$facture) {
                 return $this->responseJson(false, 'Facture non trouvée.', null, 404);

@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('numero')->unique();
             $table->foreignId('contact_id')->constrained('users')->onDelete('cascade');
             $table->decimal('montant_total', 12, 2)->default(0);
+            $table->integer('qte_total')->default(0)->after('montant_total');
             $table->decimal('reduction', 8, 2)->default(0); 
             $table->enum('statut', [
                 'brouillon',
