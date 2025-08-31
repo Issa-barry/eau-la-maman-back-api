@@ -18,10 +18,11 @@ class EncaissementStoreController extends Controller
     public function store(Request $request)
     {
         try {
+            // ✅ on valide "mode_paiement" (et pas "mode")
             $validated = $request->validate([
                 'facture_id'        => 'required|exists:facture_livraisons,id',
                 'montant'           => 'required|numeric|min:1',
-                'mode'              => 'nullable|string|in:espèces,orange-money,dépot-banque',
+                'mode_paiement'     => 'nullable|string|in:espèces,orange-money,dépot-banque',
                 'date_encaissement' => 'nullable|date',
                 'reference'         => 'nullable|string|max:191',
                 'commentaire'       => 'nullable|string',
@@ -35,12 +36,11 @@ class EncaissementStoreController extends Controller
         try {
             $facture = FactureLivraison::with('encaissements')->findOrFail($validated['facture_id']);
 
-            // 🔒 NE PAS ENCAISSER UNE FACTURE BROUILLON
+            // 🔒 pas d’encaissement sur un brouillon
             if ($facture->statut === FactureLivraison::STATUT_BROUILLON) {
                 return $this->responseJson(false, "Cette facture est en brouillon. Veuillez la valider avant d'encaisser.", null, 422);
             }
 
-            // Refuser tout encaissement si la facture est déjà soldée
             if ((float) $facture->montant_du === 0.0) {
                 return $this->responseJson(false,
                     "Impossible d'encaisser : la facture est déjà soldée (montant dû = 0), statut « {$facture->statut} ».",
@@ -48,7 +48,6 @@ class EncaissementStoreController extends Controller
                 );
             }
 
-            // Refuser si dépassement du montant dû
             if ($validated['montant'] > (float) $facture->montant_du) {
                 return $this->responseJson(false, 'Le montant encaissé dépasse le montant dû restant.', [
                     'montant_du'     => (float) $facture->montant_du,
@@ -56,21 +55,20 @@ class EncaissementStoreController extends Controller
                 ], 422);
             }
 
-            // Valeurs par défaut
-            $mode = $validated['mode'] ?? 'espèces';
+            // ✅ lecture du mode, compatibilité avec l’ancien "mode"
+            $mode = $validated['mode_paiement'] ?? $request->input('mode', 'espèces');
             $date = $validated['date_encaissement'] ?? now();
 
-            // Création de l'encaissement
+            // ✅ on enregistre en base dans la colonne "mode_paiement"
             $encaissement = Encaissement::create([
                 'facture_id'        => $facture->id,
                 'montant'           => $validated['montant'],
-                'mode'              => $mode,
+                'mode_paiement'     => $mode,
                 'reference'         => $validated['reference'] ?? null,
                 'date_encaissement' => $date,
                 'commentaire'       => $validated['commentaire'] ?? null,
             ]);
 
-            // Mise à jour du montant dû + statut
             $this->updateFactureStatut($facture);
 
             DB::commit();
@@ -79,7 +77,10 @@ class EncaissementStoreController extends Controller
                 'id'                => $encaissement->id,
                 'facture_id'        => $encaissement->facture_id,
                 'montant'           => (float) $encaissement->montant,
-                'mode'              => $encaissement->mode,
+                // ✅ réponse normalisée: "mode_paiement"
+                'mode_paiement'     => $encaissement->mode_paiement,
+                // (option) alias legacy si tu veux rester tolérant pendant la transition :
+                // 'mode'           => $encaissement->mode_paiement,
                 'reference'         => $encaissement->reference,
                 'date_encaissement' => $encaissement->date_encaissement,
                 'created_at'        => $encaissement->created_at,
