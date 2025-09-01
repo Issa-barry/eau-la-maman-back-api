@@ -27,4 +27,9 @@ class CommandeLigne extends Model
     {
         return $this->belongsTo(Produit::class);
     }
+
+     public function livraisonLignes()
+    {
+        return $this->hasMany(LivraisonLigne::class, 'commande_ligne_id');
+    }
 }

@@ -11,6 +11,7 @@ class LivraisonLigne extends Model
 
     protected $fillable = [
         'livraison_id',
+        'commande_ligne_id',
         'produit_id',
         'quantite',
         'montant_payer'
@@ -20,6 +21,10 @@ class LivraisonLigne extends Model
     {
         return $this->belongsTo(Livraison::class);
     }
+
+   public function commandeLigne() {
+  return $this->belongsTo(CommandeLigne::class, 'commande_ligne_id');
+}
 
     public function produit()
     {
