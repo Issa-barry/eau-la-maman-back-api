@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('livraison_lignes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('livraison_id')->constrained()->onDelete('cascade');
+            $table->foreignId('commande_ligne_id')->constrained('commande_lignes')->onDelete('cascade');
             $table->foreignId('produit_id')->constrained()->onDelete('restrict');
             $table->integer('quantite');
             $table->decimal('montant_payer', 12, 2);

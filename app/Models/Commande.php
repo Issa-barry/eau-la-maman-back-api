@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Commande extends Model
 {
@@ -16,20 +17,20 @@ class Commande extends Model
         'contact_id',
         'montant_total',
         'statut',
-        'reduction'
+        'reduction',
     ];
 
     protected $appends = [
         'qte_total',
-        'qte_restante', 
+        'qte_restante',
         'qte_livree',
         'pourcentage_livre',
-        'is_entierement_livree'
+        'is_entierement_livree',
     ];
 
     protected $casts = [
         'montant_total' => 'decimal:2',
-        'reduction' => 'decimal:2',
+        'reduction'     => 'decimal:2',
     ];
 
     /**
@@ -37,6 +38,7 @@ class Commande extends Model
      */
     public function contact(): BelongsTo
     {
+        // Si ton contact est un Contact, mets Contact::class
         return $this->belongsTo(User::class, 'contact_id');
     }
 
@@ -50,46 +52,59 @@ class Commande extends Model
         return $this->hasMany(Livraison::class);
     }
 
+    public function livraisonLignes(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            LivraisonLigne::class, // modèle final
+            Livraison::class,      // modèle intermédiaire
+            'commande_id',         // FK de livraisons vers commandes
+            'livraison_id',        // FK de livraison_lignes vers livraisons
+            'id',                  // PK locale (commandes)
+            'id'                   // PK locale (livraisons)
+        );
+    }
+
     /**
-     * Accesseurs calculés
+     * Accesseurs calculés (requêtes, pas collections)
      */
     public function getQteTotalAttribute(): int
     {
-        return $this->lignes->sum('quantite_commandee');
-    }
-
-    public function getQteRestanteAttribute(): int
-    {
-        return $this->lignes->sum('quantite_restante');
+        // Somme des quantités commandées
+        return (int) $this->lignes()->sum('quantite_commandee');
     }
 
     public function getQteLivreeAttribute(): int
     {
-        return $this->qte_total - $this->qte_restante;
+        // Somme réelle livrée (toutes les livraisons de la commande)
+        return (int) $this->livraisonLignes()->sum('quantite');
+    }
+
+    public function getQteRestanteAttribute(): int
+    {
+        // On ne se base plus sur quantite_restante des lignes
+        return max(0, $this->qte_total - $this->qte_livree);
     }
 
     public function getPourcentageLivreAttribute(): float
     {
-        if ($this->qte_total <= 0) {
-            return 0.0;
-        }
-        
-        return round(($this->qte_livree / $this->qte_total) * 100, 2);
+        return $this->qte_total > 0
+            ? round(100 * $this->qte_livree / $this->qte_total, 2)
+            : 0.0;
     }
 
     public function getIsEntierementLivreeAttribute(): bool
     {
-        return $this->qte_restante <= 0;
+        return $this->qte_total > 0 && $this->qte_livree >= $this->qte_total;
     }
 
     public function getStatutLabelAttribute(): string
     {
         $labels = [
-            'brouillon' => 'Brouillon',
-            'annulé' => 'Annulée',
-            'livraison_en_cours' => 'En cours de livraison',
-            'livré' => 'Livrée',
-            'cloturé' => 'Clôturée'
+            'brouillon'           => 'Brouillon',
+            'annulé'              => 'Annulée',
+            'livraison_en_cours'  => 'En cours de livraison',
+            'livré'               => 'Livrée',
+            'cloturé'             => 'Clôturée',
         ];
 
         return $labels[$this->statut] ?? $this->statut;
@@ -98,11 +113,11 @@ class Commande extends Model
     public function getStatutColorAttribute(): string
     {
         $colors = [
-            'brouillon' => 'gray',
-            'annulé' => 'red',
-            'livraison_en_cours' => 'blue',
-            'livré' => 'green',
-            'cloturé' => 'purple'
+            'brouillon'           => 'gray',
+            'annulé'              => 'red',
+            'livraison_en_cours'  => 'blue',
+            'livré'               => 'green',
+            'cloturé'             => 'purple',
         ];
 
         return $colors[$this->statut] ?? 'gray';
@@ -123,8 +138,15 @@ class Commande extends Model
 
     public function scopeAvecQuantiteRestante($query)
     {
-        return $query->whereHas('lignes', function ($q) {
-            $q->where('quantite_restante', '>', 0);
+        // Basé sur le nouveau calcul (qte_total - qte_livree)
+        return $query->where(function ($q) {
+            $q->whereHas('lignes') // s'assurer qu'il y a des lignes
+              ->whereRaw('(SELECT COALESCE(SUM(quantite_commandee),0) FROM commande_lignes WHERE commande_lignes.commande_id = commandes.id)
+                           >
+                           (SELECT COALESCE(SUM(livraison_lignes.quantite),0)
+                              FROM livraisons
+                              LEFT JOIN livraison_lignes ON livraison_lignes.livraison_id = livraisons.id
+                             WHERE livraisons.commande_id = commandes.id)');
         });
     }
 
@@ -148,17 +170,17 @@ class Commande extends Model
      */
     public function peutEtreModifiee(): bool
     {
-        return in_array($this->statut, ['brouillon']);
+        return in_array($this->statut, ['brouillon'], true);
     }
 
     public function peutEtreAnnulee(): bool
     {
-        return in_array($this->statut, ['brouillon', 'livraison_en_cours']);
+        return in_array($this->statut, ['brouillon', 'livraison_en_cours'], true);
     }
 
     public function peutEtreLivree(): bool
     {
-        return in_array($this->statut, ['brouillon', 'livraison_en_cours']);
+        return in_array($this->statut, ['brouillon', 'livraison_en_cours'], true);
     }
 
     public function peutEtreCloturee(): bool
@@ -168,70 +190,74 @@ class Commande extends Model
 
     public function annuler(): bool
     {
-        if (!$this->peutEtreAnnulee()) {
-            return false;
-        }
-
-        return $this->update(['statut' => 'annulé']);
+        return $this->peutEtreAnnulee()
+            ? $this->update(['statut' => 'annulé'])
+            : false;
     }
 
     public function marquerCommeEnCoursLivraison(): bool
     {
-        if ($this->statut !== 'brouillon') {
-            return false;
-        }
-
-        return $this->update(['statut' => 'livraison_en_cours']);
+        return $this->statut === 'brouillon'
+            ? $this->update(['statut' => 'livraison_en_cours'])
+            : false;
     }
 
     public function marquerCommeLivree(): bool
     {
-        if (!$this->is_entierement_livree) {
-            return false;
-        }
-
+        // Ici on autorise le passage à "livré" même si partiellement,
+        // si ta règle métier le veut (sinon garde le check is_entierement_livree)
         return $this->update(['statut' => 'livré']);
+        // Ancien comportement :
+        // return $this->is_entierement_livree ? $this->update(['statut' => 'livré']) : false;
     }
 
     public function cloturer(): bool
     {
-        if (!$this->peutEtreCloturee()) {
-            return false;
-        }
-
-        return $this->update(['statut' => 'cloturé']);
+        return $this->peutEtreCloturee()
+            ? $this->update(['statut' => 'cloturé'])
+            : false;
     }
 
     /**
-     * Méthodes de calcul
+     * Méthodes de calcul (montants)
      */
     public function getMontantBrut(): float
     {
-        return $this->lignes->sum(function ($ligne) {
-            return $ligne->quantite_commandee * $ligne->prix_vente;
-        });
+        return (float) $this->lignes()->selectRaw('COALESCE(SUM(quantite_commandee * prix_vente),0) as total')->value('total');
     }
 
     public function getMontantRemise(): float
     {
-        return $this->reduction;
+        return (float) $this->reduction;
     }
 
     public function getMontantNet(): float
     {
-        return max(0, $this->getMontantBrut() - $this->getMontantRemise());
+        return max(0.0, $this->getMontantBrut() - $this->getMontantRemise());
     }
 
     public function getNombreProduitsDifferents(): int
     {
-        return $this->lignes->count();
+        return (int) $this->lignes()->count();
     }
 
     public function getProduitsManquants()
     {
-        return $this->lignes->filter(function ($ligne) {
-            return $ligne->quantite_restante > 0;
-        });
+        // produit “manquant” = encore du restant
+        // On calcule via SQL : quantite_commandee - livrée > 0
+        $ligneIds = $this->lignes()->pluck('id');
+
+        $idsAvecRestant = CommandeLigne::query()
+            ->whereIn('id', $ligneIds)
+            ->selectRaw('commande_lignes.*, (quantite_commandee - COALESCE((
+                SELECT SUM(livraison_lignes.quantite)
+                FROM livraison_lignes
+                WHERE livraison_lignes.commande_ligne_id = commande_lignes.id
+            ),0)) as restant_calc')
+            ->having('restant_calc', '>', 0)
+            ->get();
+
+        return $idsAvecRestant;
     }
 
     /**
@@ -255,7 +281,7 @@ class Commande extends Model
     {
         $lastCommande = static::latest('id')->first();
         $nextId = $lastCommande ? $lastCommande->id + 1 : 1;
-        
+
         return 'CO' . str_pad($nextId, 8, '0', STR_PAD_LEFT);
     }
 }

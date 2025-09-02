@@ -72,7 +72,7 @@ class FactureLivraisonValidateController extends Controller
             DB::commit();
 
             return $this->responseJson(true, "Facture validée.", $facture->fresh()->load([
-                'client', 'commande', 'lignes.produit', 'encaissements'
+                'commande', 'lignes.produit', 'encaissements'
             ]));
         } catch (\Throwable $e) {
             DB::rollBack();

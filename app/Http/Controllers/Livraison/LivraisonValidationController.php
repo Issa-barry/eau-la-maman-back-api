@@ -1,9 +1,12 @@
-<?php  
+<?php
+
 namespace App\Http\Controllers\Livraison;
 
 use App\Http\Controllers\Controller;
 use App\Models\Commande;
+use App\Models\CommandeLigne;
 use App\Models\Livraison;
+use App\Models\LivraisonLigne;
 use App\Models\FactureLivraison;
 use App\Models\FactureLigne;
 use Illuminate\Http\Request;
@@ -13,94 +16,191 @@ use Illuminate\Validation\ValidationException;
 class LivraisonValidationController extends Controller
 {
     /**
-     * Valide la livraison d'une commande et crée la facture associée.
+     * Valider une livraison (multi-produits) et clôturer la commande.
+     * Règle métier : dès qu'on passe ici, la commande devient "livré"
+     * (sans modifier les quantités restantes des lignes).
+     *
+     * Payload:
+     * {
+     *   "date_livraison": "2025-09-01",
+     *   "lignes": [
+     *     { "commande_ligne_id": 59, "quantite_livree": 1 },
+     *     { "commande_ligne_id": 60, "quantite_livree": 2 }
+     *   ]
+     * }
+     * Compat : sans "lignes", on accepte "quantite_livree" pour la 1ère ligne.
      */
     public function valider(Request $request, string $commandeNumero)
     {
-        try {
-            // Validation des données de la requête
+        // Validation souple (multi-lignes prioritaire)
+        if ($request->has('lignes')) {
             $validated = $request->validate([
-                'date_livraison' => 'required|date',  // Date de la livraison
-                'quantite_livree' => 'required|integer|min:1',  // Quantité livrée
+                'date_livraison'             => ['required','date'],
+                'lignes'                     => ['required','array','min:1'],
+                'lignes.*.commande_ligne_id' => ['required','exists:commande_lignes,id'],
+                'lignes.*.quantite_livree'   => ['required','integer','min:1'],
             ]);
-
-            // Récupérer la commande par son numéro
-            $commande = Commande::where('numero', $commandeNumero)
-                ->with('lignes')  // Charger les lignes associées
-                ->first();
-
-            // Vérification si la commande existe
-            if (!$commande) {
-                return response()->json(['error' => 'Commande non trouvée'], 404);
-            }
-
-            // Vérification du statut de la commande (seulement "livraison_en_cours" peut être validé)
-            if ($commande->statut !== 'livraison_en_cours') {
-                return response()->json(['error' => 'Seules les commandes avec le statut "livraison_en_cours" peuvent être validées pour la livraison.'], 422);
-            }
-
-            // Vérification de la quantité livrée
-            $ligneCommande = $commande->lignes->first();
-            if ($ligneCommande->quantite_restante <= 0) {
-                return response()->json(['error' => 'Cette commande a déjà été entièrement livrée.'], 422);
-            }
-
-            // Vérifier que la quantité livrée ne dépasse pas la quantité restante
-            if ($validated['quantite_livree'] > $ligneCommande->quantite_restante) {
-                return response()->json(['error' => 'La quantité livrée dépasse la quantité restante de cette commande'], 422);
-            }
-
-            // Créer la livraison avec la quantité livrée
-            $livraison = Livraison::create([
-                'commande_id' => $commande->id,
-                'date_livraison' => $validated['date_livraison'],
-                'quantite_livree' => $validated['quantite_livree'],
+        } else {
+            $validated = $request->validate([
+                'date_livraison'  => ['required','date'],
+                'quantite_livree' => ['required','integer','min:1'],
             ]);
+        }
 
-            // Mise à jour de la ligne de commande (quantité restante)
-            $ligneCommande->decrement('quantite_restante', $validated['quantite_livree']);
+        $commande = Commande::where('numero', $commandeNumero)
+            ->with(['lignes.produit', 'contact'])
+            ->first();
 
-            // Si tout est livré, mise à jour du statut de la commande
-            $nouveauStatut = $ligneCommande->quantite_restante == 0 ? 'livré' : 'livraison_en_cours';
-            $commande->update(['statut' => $nouveauStatut]);
+        if (!$commande) {
+            return response()->json(['error' => 'Commande non trouvée'], 404);
+        }
 
-            // Mise à jour du stock (si des produits sont retournés)
-            if ($validated['quantite_livree'] < $ligneCommande->quantite_restante) {
-                // Incrémenter le stock pour la quantité retournée
-                $ligneCommande->produit->increment('quantite_stock', $validated['quantite_livree']);
-            }
-
-            // Créer la facture de livraison
-            $factureLivraison = FactureLivraison::create([
-                'commande_id' => $commande->id,
-                'numero' => 'FAC-' . now()->format('Ymd') . '-' . str_pad(FactureLivraison::max('id') + 1, 4, '0', STR_PAD_LEFT),
-                'montant_du' => $validated['quantite_livree'] * $ligneCommande->prix_vente,
-                'total' => $validated['quantite_livree'] * $ligneCommande->prix_vente,
-                'statut' => FactureLivraison::STATUT_BROUILLON, // Facture en statut brouillon
-            ]);
-
-            // Créer la ligne de facture pour ce produit livré
-            FactureLigne::create([
-                'facture_id' => $factureLivraison->id,
-                'produit_id' => $ligneCommande->produit_id,
-                'quantite' => $validated['quantite_livree'],
-                'prix_unitaire_ht' => $ligneCommande->prix_vente,
-                'montant_ht' => $validated['quantite_livree'] * $ligneCommande->prix_vente,
-                'montant_ttc' => $validated['quantite_livree'] * $ligneCommande->prix_vente, // Pas de TVA ici
-            ]);
-
-            DB::commit();
-
+        if (!in_array($commande->statut, ['brouillon','livraison_en_cours'])) {
             return response()->json([
-                'success' => true,
-                'message' => 'Livraison validée et facture générée avec succès.',
-                'livraison' => $livraison,
-                'facture' => $factureLivraison,
-                'commande_statut' => $nouveauStatut,
-            ]);
+                'error' => 'Statut incompatible. Il faut "brouillon" ou "livraison_en_cours".'
+            ], 422);
+        }
+
+        try {
+            return DB::transaction(function () use ($commande, $validated) {
+
+                // Entête de livraison (quantité totale calculée après)
+                $livraison = Livraison::create([
+                    'commande_id'     => $commande->id,
+                    'date_livraison'  => $validated['date_livraison'],
+                    'quantite_livree' => 0, // provisoire
+                ]);
+
+                $factureTotal = 0.0;
+                $totalLivree  = 0;
+                $lignesCreees = [];
+
+                // MULTI-LIGNES
+                if (!empty($validated['lignes'])) {
+                    foreach ($validated['lignes'] as $l) {
+                        /** @var CommandeLigne $cl */
+                        $cl = CommandeLigne::lockForUpdate()
+                            ->with(['produit', 'livraisonLignes'])
+                            ->findOrFail($l['commande_ligne_id']);
+
+                        // sécurité : la ligne doit appartenir à la commande
+                        if ((int) $cl->commande_id !== (int) $commande->id) {
+                            throw ValidationException::withMessages([
+                                "lignes.{$cl->id}.commande_ligne_id" => ["La ligne n'appartient pas à la commande {$commande->numero}."]
+                            ]);
+                        }
+
+                        // contrôle optionnel : ne pas livrer plus que commandé
+                        $dejaLivre = (int) $cl->livraisonLignes->sum('quantite');
+                        $restant   = max(0, (int) $cl->quantite_commandee - $dejaLivre);
+                        if ((int) $l['quantite_livree'] > $restant) {
+                            throw ValidationException::withMessages([
+                                "lignes.{$cl->id}.quantite_livree" => ["La quantité dépasse le restant ($restant)."]
+                            ]);
+                        }
+
+                        $qty     = (int) $l['quantite_livree'];
+                        $montant = (float) $cl->prix_vente * $qty;
+
+                        $ll = LivraisonLigne::create([
+                            'livraison_id'      => $livraison->id,
+                            'commande_ligne_id' => $cl->id,
+                            'produit_id'        => $cl->produit_id,
+                            'quantite'          => $qty,
+                            'montant_payer'     => $montant,
+                        ]);
+                        $lignesCreees[] = $ll;
+
+                        // ⚠️ On NE TOUCHE PAS à quantite_restante ici
+                        $totalLivree  += $qty;
+                        $factureTotal += $montant;
+                    }
+                }
+                // COMPAT : quantité unique sur la 1ère ligne
+                else {
+                    /** @var CommandeLigne $cl */
+                    $cl = CommandeLigne::lockForUpdate()
+                        ->with(['produit', 'livraisonLignes'])
+                        ->where('commande_id', $commande->id)
+                        ->orderBy('id')
+                        ->first();
+
+                    if (!$cl) {
+                        throw ValidationException::withMessages(['commande' => ['Aucune ligne de commande.']]);
+                    }
+
+                    $dejaLivre = (int) $cl->livraisonLignes->sum('quantite');
+                    $restant   = max(0, (int) $cl->quantite_commandee - $dejaLivre);
+                    if ((int) $validated['quantite_livree'] > $restant) {
+                        throw ValidationException::withMessages([
+                            "quantite_livree" => ["La quantité dépasse le restant ($restant)."]
+                        ]);
+                    }
+
+                    $qty     = (int) $validated['quantite_livree'];
+                    $montant = (float) $cl->prix_vente * $qty;
+
+                    $ll = LivraisonLigne::create([
+                        'livraison_id'      => $livraison->id,
+                        'commande_ligne_id' => $cl->id,
+                        'produit_id'        => $cl->produit_id,
+                        'quantite'          => $qty,
+                        'montant_payer'     => $montant,
+                    ]);
+                    $lignesCreees[] = $ll;
+
+                    // ⚠️ On NE TOUCHE PAS à quantite_restante ici
+                    $totalLivree  = $qty;
+                    $factureTotal = $montant;
+                }
+
+                // Met à jour l’entête livraison avec la somme réelle
+                $livraison->update(['quantite_livree' => $totalLivree]);
+
+                // === Règle : on clôture systématiquement la commande ===
+                $commande->update(['statut' => 'livré']);
+
+                // FACTURE (impayée) avec 1 ligne par produit livré
+                $facture = FactureLivraison::create([
+                    'commande_id' => $commande->id,
+                    'numero'      => 'FAC-'.now()->format('Ymd').'-'.str_pad((int) (FactureLivraison::max('id') + 1), 4, '0', STR_PAD_LEFT),
+                    'total'       => $factureTotal,
+                    'montant_du'  => $factureTotal,
+                    'statut'      => FactureLivraison::STATUT_IMPAYE,
+                ]);
+
+                foreach ($lignesCreees as $ll) {
+                    /** @var CommandeLigne $cl */
+                    $cl = CommandeLigne::with('produit')->find($ll->commande_ligne_id);
+                    FactureLigne::create([
+                        'facture_id'       => $facture->id,
+                        'produit_id'       => $cl->produit_id,
+                        'quantite'         => (int) $ll->quantite,
+                        'prix_unitaire_ht' => (float) $cl->prix_vente,
+                        'montant_ht'       => (float) $cl->prix_vente * (int) $ll->quantite,
+                        'montant_ttc'      => (float) $cl->prix_vente * (int) $ll->quantite,
+                    ]);
+                }
+
+                // Réponse
+                $facture->load(['lignes.produit', 'commande.contact']);
+                $livraison->load('lignes.produit');
+
+                return response()->json([
+                    'success'         => true,
+                    'message'         => 'Livraison validée, commande clôturée (livré) et facture (impayée) créée.',
+                    'livraison'       => $livraison,
+                    'facture'         => $facture,
+                    'commande_statut' => $commande->statut, // toujours "livré"
+                ], 201);
+            });
+        } catch (ValidationException $ve) {
+            throw $ve;
         } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Erreur serveur', 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'error'   => 'Erreur serveur',
+                'message' => app()->isLocal() || config('app.debug') ? $e->getMessage() : 'Erreur interne'
+            ], 500);
         }
     }
 }
