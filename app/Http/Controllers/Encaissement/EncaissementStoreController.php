@@ -34,32 +34,41 @@ class EncaissementStoreController extends Controller
         DB::beginTransaction();
 
         try {
-            $facture = FactureLivraison::with('encaissements')->findOrFail($validated['facture_id']);
+            // On charge facture + encaissements (calculs) + commande (pour la clôture)
+            $facture = FactureLivraison::with(['encaissements', 'commande'])
+                ->findOrFail($validated['facture_id']);
 
             // 🔒 pas d’encaissement sur un brouillon
             if ($facture->statut === FactureLivraison::STATUT_BROUILLON) {
+                DB::rollBack();
                 return $this->responseJson(false, "Cette facture est en brouillon. Veuillez la valider avant d'encaisser.", null, 422);
             }
 
+            // déjà soldée
             if ((float) $facture->montant_du === 0.0) {
-                return $this->responseJson(false,
+                DB::rollBack();
+                return $this->responseJson(
+                    false,
                     "Impossible d'encaisser : la facture est déjà soldée (montant dû = 0), statut « {$facture->statut} ».",
-                    null, 422
+                    null,
+                    422
                 );
             }
 
+            // contrôle dépassement
             if ($validated['montant'] > (float) $facture->montant_du) {
+                DB::rollBack();
                 return $this->responseJson(false, 'Le montant encaissé dépasse le montant dû restant.', [
                     'montant_du'     => (float) $facture->montant_du,
                     'statut_facture' => $facture->statut,
                 ], 422);
             }
 
-            // ✅ lecture du mode, compatibilité avec l’ancien "mode"
+            // compat ancien champ "mode"
             $mode = $validated['mode_paiement'] ?? $request->input('mode', 'espèces');
             $date = $validated['date_encaissement'] ?? now();
 
-            // ✅ on enregistre en base dans la colonne "mode_paiement"
+            // Création de l'encaissement
             $encaissement = Encaissement::create([
                 'facture_id'        => $facture->id,
                 'montant'           => $validated['montant'],
@@ -69,33 +78,35 @@ class EncaissementStoreController extends Controller
                 'commentaire'       => $validated['commentaire'] ?? null,
             ]);
 
-            $this->updateFactureStatut($facture);
+            // Recalcule le statut de la facture et clôture la commande si soldée
+            $this->updateFactureStatutEtCommande($facture);
 
             DB::commit();
+
+            // recharge pour renvoyer les valeurs à jour
+            $facture->refresh()->load(['encaissements', 'commande']);
 
             return $this->responseJson(true, 'Encaissement enregistré.', [
                 'id'                => $encaissement->id,
                 'facture_id'        => $encaissement->facture_id,
                 'montant'           => (float) $encaissement->montant,
-                // ✅ réponse normalisée: "mode_paiement"
                 'mode_paiement'     => $encaissement->mode_paiement,
-                // (option) alias legacy si tu veux rester tolérant pendant la transition :
-                // 'mode'           => $encaissement->mode_paiement,
                 'reference'         => $encaissement->reference,
                 'date_encaissement' => $encaissement->date_encaissement,
                 'created_at'        => $encaissement->created_at,
                 'updated_at'        => $encaissement->updated_at,
                 'facture'           => [
-                    'id'          => $facture->id,
-                    'numero'      => $facture->numero,
-                    'client_id'   => $facture->client_id,
-                    'commande_id' => $facture->commande_id,
-                    'total'       => (float) $facture->total,
-                    'montant_du'  => (float) $facture->montant_du,
-                    'statut'      => $facture->statut,
-                    'created_at'  => $facture->created_at,
-                    'updated_at'  => $facture->updated_at,
-                ]
+                    'id'             => $facture->id,
+                    'numero'         => $facture->numero,
+                    'client_id'      => $facture->client_id ?? null,
+                    'commande_id'    => $facture->commande_id,
+                    'total'          => (float) $facture->total,
+                    'montant_du'     => (float) $facture->montant_du,
+                    'statut'         => $facture->statut,
+                    'created_at'     => $facture->created_at,
+                    'updated_at'     => $facture->updated_at,
+                ],
+                'commande_statut'   => optional($facture->commande)->statut,
             ]);
         } catch (Throwable $e) {
             DB::rollBack();
@@ -105,19 +116,34 @@ class EncaissementStoreController extends Controller
         }
     }
 
-    private function updateFactureStatut(FactureLivraison $facture): void
+    /**
+     * Recalcule montant_du + statut de la facture,
+     * puis si facture soldée => passe la commande à "cloturé".
+     */
+    private function updateFactureStatutEtCommande(FactureLivraison $facture): void
     {
+        // Total encaissé recalculé depuis la base (la création vient d’avoir lieu)
         $totalEncaisse = (float) $facture->encaissements()->sum('montant');
-        $facture->montant_du = max(0, (float) $facture->total - $totalEncaisse);
 
-        if ((float) $facture->montant_du === 0.0) {
+        // Si "total" est TTC dans ton modèle, garde-le. Sinon, utilise le total TTC des lignes.
+        $base = (float) $facture->total;
+
+        $facture->montant_du = max(0.0, $base - $totalEncaisse);
+
+        if ($facture->montant_du === 0.0) {
             $facture->statut = FactureLivraison::STATUT_PAYE;
-        } elseif ($totalEncaisse > 0) {
+        } elseif ($totalEncaisse > 0.0) {
             $facture->statut = FactureLivraison::STATUT_PARTIEL;
         } else {
             $facture->statut = FactureLivraison::STATUT_IMPAYE;
         }
-
         $facture->save();
+
+        // ✅ Si facture soldée ⇒ commande "cloturé" (et on ne dé-clôture jamais)
+        if ($facture->statut === FactureLivraison::STATUT_PAYE && $facture->commande) {
+            if ($facture->commande->statut !== 'cloturé') {
+                $facture->commande->update(['statut' => 'cloturé']);
+            }
+        }
     }
 }
