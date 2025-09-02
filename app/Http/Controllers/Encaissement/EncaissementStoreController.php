@@ -38,7 +38,7 @@ class EncaissementStoreController extends Controller
             $facture = FactureLivraison::with(['encaissements', 'commande'])
                 ->findOrFail($validated['facture_id']);
 
-            // 🔒 pas d’encaissement sur un brouillon
+            // pas d’encaissement sur un brouillon
             if ($facture->statut === FactureLivraison::STATUT_BROUILLON) {
                 DB::rollBack();
                 return $this->responseJson(false, "Cette facture est en brouillon. Veuillez la valider avant d'encaisser.", null, 422);
