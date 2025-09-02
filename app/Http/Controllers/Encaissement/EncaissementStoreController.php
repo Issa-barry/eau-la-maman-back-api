@@ -139,7 +139,7 @@ class EncaissementStoreController extends Controller
         }
         $facture->save();
 
-        // ✅ Si facture soldée ⇒ commande "cloturé" (et on ne dé-clôture jamais)
+        //  Si facture soldée ⇒ commande "cloturé" (et on ne dé-clôture jamais)
         if ($facture->statut === FactureLivraison::STATUT_PAYE && $facture->commande) {
             if ($facture->commande->statut !== 'cloturé') {
                 $facture->commande->update(['statut' => 'cloturé']);
