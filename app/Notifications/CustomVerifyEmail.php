@@ -24,7 +24,7 @@ class CustomVerifyEmail extends BaseVerifyEmail
         );
 
         // FRONTEND_VERIFY_EMAIL_URL conseillé = https://usine-eau-front.eu/auth/validation
-        $frontendUrl = rtrim(config('app.frontend_verify_email_url', config('app.frontend_url')), '/');
+        $frontendUrl = rtrim(config('app.frontend_verify_email_url'));
 
         return $frontendUrl . '?redirect=' . urlencode($signedURL);
     }
