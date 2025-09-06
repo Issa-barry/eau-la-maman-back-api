@@ -123,22 +123,31 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-/********IBA */
+    /********IBA */
     /*
     |--------------------------------------------------------------------------
-    | Frontend URL for Email Verification
+    | Frontend URL for Email Verification & Password Reset
     |--------------------------------------------------------------------------
     |
-    | This URL est utilisée pour rediriger les utilisateurs vers l'interface
-    | Angular (ou autre frontend) après une action importante comme
-    | la vérification de l'adresse e-mail. Elle peut varier selon l'environnement.
+    | These URLs are used to redirect users to your frontend application
+    | (Angular, React, etc.) after important actions like verifying an
+    | email address or resetting a password.
     |
     */
 
-    'frontend_verify_email_url' => env('FRONTEND_VERIFY_EMAIL_URL', `http://localhost:4200/auth/validation`),
-    'frontend_newpassword_url' => env('FRONTEND_NEWPASSWORD_URL', `http://localhost:4200/auth/newpassword`), // URL pour la réinitialisation du mot de passe
-  
+    'frontend_verify_email_url' => env('FRONTEND_VERIFY_EMAIL_URL', 'http://localhost:4200/auth/validation'),
+    'frontend_newpassword_url'  => env('FRONTEND_NEWPASSWORD_URL', 'http://localhost:4200/auth/newpassword'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | A static version string for your app. On shared hosting, avoid using
+    | shell_exec or git commands. Update manually if needed.
+    |
+    */
+
     'version' => env('APP_VERSION', '1.0.0'),
- 
+
 ];
- 
