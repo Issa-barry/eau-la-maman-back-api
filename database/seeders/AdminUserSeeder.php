@@ -40,7 +40,7 @@ class AdminUserSeeder extends Seeder
                 'email' => 'wotapif@gmail.com',
                 'phone' => '0123456789',
                 'date_naissance' => '1985-01-01',
-                'password' => Hash::make('P@ssword1'), // N'oubliez pas de sécuriser le mot de passe
+                'password' => Hash::make('Jeux@2019'), // N'oubliez pas de sécuriser le mot de passe
                 'adresse_id' => $adresse->id,
                 'role_id' => 1,
             ]);

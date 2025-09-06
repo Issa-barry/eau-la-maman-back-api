@@ -88,6 +88,7 @@ use App\Http\Controllers\User\Clients\CreateClientController;
 use App\Http\Controllers\User\Clients\DeleteClientController;
 use App\Http\Controllers\User\Clients\ShowClientController;
 use App\Http\Controllers\User\Clients\UpdateClientController;
+use App\Http\Controllers\User\Employes\CreateEmployeController;
 
 Route::post('/clients/create', [CreateClientController::class, 'store']);
 Route::get('/clients/all', [ShowClientController::class, 'index']);
@@ -95,7 +96,7 @@ Route::get('/clients/showByReference/{id}', [ShowClientController::class, 'showB
 Route::put('/users/clients/updateById/{id}', [UpdateClientController::class, 'update']);
 Route::delete('/clients/deleteByReference/{reference}', [DeleteClientController::class, 'destroy']);
 
- 
+ Route::post('/employes/create', [CreateEmployeController::class, 'store']);
 
 
 /**********************************************************
@@ -190,14 +191,13 @@ use App\Http\Controllers\Commande\CommandeStoreController;
 use App\Http\Controllers\Commande\CommandeUpdateController;
 use App\Http\Controllers\Commande\CommandeDeleteController;
 use App\Http\Controllers\Commande\CommandeValiderController;
- 
- 
+
 Route::prefix('commandes')->group(function () {
 //creation et modification 
 Route::post('/create', [CommandeStoreController::class, 'store']);
 Route::put('/updateByNumero/{numero}', [CommandeUpdateController::class, 'updateByNumero']);
 // Affichage
-Route::get('/all', [CommandeShowController::class, 'all']);
+Route::get('/', [CommandeShowController::class, 'index']); 
 Route::get('/showByNumero/{numero}', [CommandeShowController::class, 'showByNumero']); // /api/commandes/numero/CO00000001
 // Validation & statut
 Route::patch('/validation/{numero}', [CommandeValiderController::class, 'valider']);
@@ -205,7 +205,8 @@ Route::patch('/{numero}/majStatut', [CommandeStatutController::class, 'changerSt
 // Supression
 Route::delete('/deleteById/{id}', [CommandeDeleteController::class, 'deleteById']);
 Route::delete('/deleteByNumero/{numero}', [CommandeDeleteController::class, 'deleteByNumero']);
-
+// Filtre 
+Route::post('/search', [CommandeShowController::class, 'index']);
 });
 
  /**********************************************************
@@ -311,3 +312,29 @@ Route::prefix('encaissements')->group(function () {
     Route::put('/updateById/{id}', [EncaissementUpdateController::class, 'update']);
     Route::delete('/{id}', [EncaissementDeleteController::class, 'destroy']);
 });
+
+
+ /**********************************************************
+ *   
+ * Dashboard 
+ * 
+ * ********************************************************/
+ 
+ use App\Http\Controllers\Dashboard\{
+    StatistiqueEncaissementController,
+    StatistiqueFactureController,
+    StatistiqueCommandeController,
+    StatistiqueLivraisonController,
+    StatistiqueUserController
+};
+ 
+
+Route::prefix('dashboards')->group(function () {
+    Route::get('/statistiques/encaissements', [StatistiqueEncaissementController::class, 'index']);
+    Route::get('/statistiques/factures', [StatistiqueFactureController::class, 'index']);
+    Route::get('/statistiques/commandes', [StatistiqueCommandeController::class, 'index']);
+    Route::get('/statistiques/livraisons', [StatistiqueLivraisonController::class, 'index']);
+    Route::get('/statistiques/users', [StatistiqueUserController::class, 'index']);
+});
+
+ 

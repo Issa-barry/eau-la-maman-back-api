@@ -63,4 +63,4 @@ class ShowUserController extends Controller
             return $this->responseJson(false, 'Erreur lors de la récupération de l\'utilisateur.', $e->getMessage(), 500);
         }
     }
-}
+} 

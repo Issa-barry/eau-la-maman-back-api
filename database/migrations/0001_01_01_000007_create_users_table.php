@@ -42,6 +42,12 @@ return new class extends Migration
 
             $table->unsignedBigInteger('agence_id')->nullable();   // Agence liée si employé
 
+            // 'specifique' (pas de véhicule) | 'vehicule' (un véhicule)
+            $table->enum('type_client', ['specifique', 'vehicule'])->default('specifique');
+            
+            // Renseigné seulement si type_client = 'vehicule'
+            $table->enum('type_vehicule', ['camion', 'fourgonette', 'tricycle'])->nullable();
+
             $table->rememberToken();
             $table->timestamps();
         });
