@@ -15,21 +15,18 @@ class CustomVerifyEmail extends BaseVerifyEmail
     protected function verificationUrl($notifiable)
     {
         $signedURL = URL::temporarySignedRoute(
-            'verification.verify', // Nom de la route Laravel
+            'verification.verify', // route nommée côté API
             Carbon::now()->addMinutes(60),
             [
-                'id' => $notifiable->getKey(),
+                'id'   => $notifiable->getKey(),
                 'hash' => sha1($notifiable->getEmailForVerification()),
             ]
         );
 
-        $frontendUrl = config('app.frontend_verify_email_url');
+        // FRONTEND_VERIFY_EMAIL_URL conseillé = https://usine-eau-front.eu/auth/validation
+        $frontendUrl = rtrim(config('app.frontend_verify_email_url', config('app.frontend_url')), '/');
 
         return $frontendUrl . '?redirect=' . urlencode($signedURL);
-
-
-        // return 'http://localhost:4200/#/auth/validation?redirect=' . urlencode($signedURL);
-
     }
 
     /**
@@ -46,4 +43,3 @@ class CustomVerifyEmail extends BaseVerifyEmail
             ->line('Si vous n’avez pas créé de compte, aucune action n’est requise.');
     }
 }
- 
