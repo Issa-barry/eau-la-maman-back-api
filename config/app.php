@@ -139,8 +139,6 @@ return [
     'frontend_newpassword_url' => env('FRONTEND_NEWPASSWORD_URL', `http://localhost:4200/auth/newpassword`), // URL pour la réinitialisation du mot de passe
   
     'version' => env('APP_VERSION', '1.0.0'),
-// ou si tu veux garder le fallback git en local uniquement :
-'version' => env('APP_VERSION', function_exists('shell_exec') ? trim(@shell_exec('git describe --tags --always')) : '1.0.0'),
-
+ 
 ];
  
