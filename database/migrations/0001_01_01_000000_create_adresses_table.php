@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('adresses', function (Blueprint $table) {
             if (!Schema::hasTable('adresses')) {
             $table->id();
-            $table->string('pays');
-            $table->string('adresse');
+            $table->string('pays')->default('Guinee-Conakry');
+            $table->string('adresse')->nullable();
             $table->string('complement_adresse')->nullable();
-            $table->string('code_postal');
-            $table->string('ville');
+            $table->string('code_postal')->nullable();
+            $table->string('ville')->nullable();
             $table->string('quartier')->nullable();
             $table->string('region')->nullable();
             $table->timestamps();
