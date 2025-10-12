@@ -8,50 +8,45 @@ use App\Traits\JsonResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
-class ContactIndexShowController extends Controller
+class ContactShowController extends Controller
 {
     use JsonResponseTrait;
 
-    // GET /contacts?search=&type=&per_page=
+    // GET /contacts/all?type=&search=&per_page=
     public function index(Request $r)
     {
         try {
             $r->validate([
-                'search'   => 'nullable|string|max:100',
                 'type'     => 'nullable|in:client_specifique,livreur,proprietaire,packing',
+                'search'   => 'nullable|string|max:100',
                 'per_page' => 'nullable|integer|min:1|max:100',
             ]);
 
             $q = Contact::query();
 
-            $type = trim((string) $r->input('type', ''));
-            if ($type !== '') {
-                $q->where('type', $type);
+            if ($r->filled('type')) {
+                $q->where('type', $r->input('type'));
             }
 
-            $search = trim((string) $r->input('search', ''));
-            if ($search !== '') {
+            if ($search = trim((string) $r->input('search', ''))) {
                 $q->where(function ($qq) use ($search) {
                     $qq->where('nom', 'like', "%{$search}%")
                        ->orWhere('prenom', 'like', "%{$search}%")
                        ->orWhere('phone', 'like', "%{$search}%")
                        ->orWhere('ville', 'like', "%{$search}%")
-                       ->orWhere('quartier', 'like', "%{$search}%");
+                       ->orWhere('quartier', 'like', "%{$search}%")
+                       ->orWhere('reference', 'like', "%{$search}%");
                 });
             }
 
             $perPage = (int) $r->input('per_page', 15);
-            if ($perPage < 1 || $perPage > 100) {
-                $perPage = 15;
-            }
+            $perPage = ($perPage < 1 || $perPage > 100) ? 15 : $perPage;
 
-            $contacts = $q->latest()->paginate($perPage);
-
-            return $this->responseJson(true, 'Liste des contacts.', $contacts);
+            return $this->responseJson(true, 'Liste des contacts.', $q->latest()->paginate($perPage));
         } catch (ValidationException $e) {
             return $this->responseJson(false, 'Échec de validation.', $e->errors(), 422);
         } catch (QueryException $e) {
@@ -60,11 +55,11 @@ class ContactIndexShowController extends Controller
         } catch (Throwable $e) {
             Log::error('Contacts index unexpected error', ['error' => $e->getMessage()]);
             return $this->responseJson(false, 'Erreur inattendue.', null, 500);
-        }
+        } 
     }
 
-    // GET /contacts/{id}
-    public function show($id)
+    // GET /contacts/getById/{id}
+    public function getById($id)
     {
         try {
             $contact = Contact::findOrFail($id);

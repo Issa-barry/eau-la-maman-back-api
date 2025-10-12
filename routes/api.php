@@ -17,5 +17,7 @@ Route::prefix('v1')->group(function () {
     require __DIR__.'/api/permissions.php';
     require __DIR__.'/api/roles.php';
     require __DIR__.'/api/contacts.php';
+    require __DIR__.'/api/vehicules.php';
 });
 
+ 
