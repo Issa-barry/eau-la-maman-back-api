@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\CustomResetPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -161,4 +162,9 @@ class User extends Authenticatable implements MustVerifyEmail
             ['id' => $notifiable->getKey(), 'hash' => sha1($notifiable->getEmailForVerification())]
         );
     }
+
+    public function sendPasswordResetNotification($token): void
+{
+    $this->notify(new CustomResetPassword($token));
+}
 }

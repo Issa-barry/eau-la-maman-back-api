@@ -33,6 +33,11 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])
         // Rôle ↔ permissions
         Route::post('/{roleId}/assign-permissions', [RolePermissionsAssignPermissionController::class, 'assignPermissionsToRole'])->name('perm.assign');
         Route::post('/{roleId}/revoke-permission', [RolePermissionsRevokePermissionController::class, 'revokePermissionFromRole'])->name('perm.revoke');
-        Route::get('/permissions-liste', [RolePermissionsShowController::class, 'listRolesPermissions'])->name('perm.list');
+        Route::get('/roles-permissions-liste', [RolePermissionsShowController::class, 'listRolesPermissions'])->name('perm.list');
         Route::get('/{roleId}/permissions', [RolePermissionsShowController::class, 'getRolePermissions'])->name('perm.ofRole');
+        Route::get('/role/{roleId}/oneRolePermissions', [RolePermissionsShowController::class, 'getRolePermissions']); // Route pour récupérer les permissions d'un rôle spécifique
+    
     });
+
+    
+ 
