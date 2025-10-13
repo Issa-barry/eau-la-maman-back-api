@@ -14,7 +14,7 @@ use Throwable;
 
 class VehiculesIndexShowController extends Controller
 {
-    use JsonResponseTrait;
+    use JsonResponseTrait; 
 
     // GET /vehicules?type=&owner_contact_id=&livreur_contact_id=&per_page=
     public function index(Request $r)
@@ -27,7 +27,7 @@ class VehiculesIndexShowController extends Controller
                 'per_page'           => 'nullable|integer|min:1|max:100',
             ]);
 
-            $q = Vehicule::query()->with(['owner','livreur']);
+            $q = Vehicule::query()->with(['livreur']);
 
             if ($r->filled('type'))               $q->where('type', $r->input('type'));
             if ($r->filled('owner_contact_id'))   $q->where('owner_contact_id', (int) $r->input('owner_contact_id'));

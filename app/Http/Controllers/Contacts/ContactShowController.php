@@ -26,7 +26,8 @@ class ContactShowController extends Controller
                 'per_page' => 'nullable|integer|min:1|max:100',
             ]);
 
-            $q = Contact::query();
+            $q = Contact::query()
+                ->with(['vehicule:id,type,immatriculation,nom_proprietaire,prenom_proprietaire,phone_proprietaire']); // ✅
 
             if ($r->filled('type')) {
                 $q->where('type', $r->input('type'));
@@ -35,11 +36,11 @@ class ContactShowController extends Controller
             if ($search = trim((string) $r->input('search', ''))) {
                 $q->where(function ($qq) use ($search) {
                     $qq->where('nom', 'like', "%{$search}%")
-                       ->orWhere('prenom', 'like', "%{$search}%")
-                       ->orWhere('phone', 'like', "%{$search}%")
-                       ->orWhere('ville', 'like', "%{$search}%")
-                       ->orWhere('quartier', 'like', "%{$search}%")
-                       ->orWhere('reference', 'like', "%{$search}%");
+                        ->orWhere('prenom', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('ville', 'like', "%{$search}%")
+                        ->orWhere('quartier', 'like', "%{$search}%")
+                        ->orWhere('reference', 'like', "%{$search}%");
                 });
             }
 
@@ -47,30 +48,30 @@ class ContactShowController extends Controller
             $perPage = ($perPage < 1 || $perPage > 100) ? 15 : $perPage;
 
             return $this->responseJson(true, 'Liste des contacts.', $q->latest()->paginate($perPage));
-        } catch (ValidationException $e) {
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->responseJson(false, 'Échec de validation.', $e->errors(), 422);
-        } catch (QueryException $e) {
-            Log::error('Contacts index query error', ['error' => $e->getMessage()]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Contacts index query error', ['error' => $e->getMessage()]);
             return $this->responseJson(false, 'Erreur lors de la récupération des contacts.', null, 500);
-        } catch (Throwable $e) {
-            Log::error('Contacts index unexpected error', ['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            \Log::error('Contacts index unexpected error', ['error' => $e->getMessage()]);
             return $this->responseJson(false, 'Erreur inattendue.', null, 500);
-        } 
+        }
     }
 
-    // GET /contacts/getById/{id}
     public function getById($id)
     {
         try {
-            $contact = Contact::findOrFail($id);
+            $contact = Contact::with(['vehicule:id,type,immatriculation,nom_proprietaire,prenom_proprietaire,phone_proprietaire'])
+                ->findOrFail($id); // ✅
             return $this->responseJson(true, 'Détail du contact.', $contact);
-        } catch (ModelNotFoundException $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->responseJson(false, 'Contact introuvable.', null, 404);
-        } catch (QueryException $e) {
-            Log::error('Contact show query error', ['id' => $id, 'error' => $e->getMessage()]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Contact show query error', ['id' => $id, 'error' => $e->getMessage()]);
             return $this->responseJson(false, 'Erreur lors de la récupération du contact.', null, 500);
-        } catch (Throwable $e) {
-            Log::error('Contact show unexpected error', ['id' => $id, 'error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            \Log::error('Contact show unexpected error', ['id' => $id, 'error' => $e->getMessage()]);
             return $this->responseJson(false, 'Erreur inattendue.', null, 500);
         }
     }

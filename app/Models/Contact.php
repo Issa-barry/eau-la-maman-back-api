@@ -16,10 +16,15 @@ class Contact extends Model
     public const TYPE_PACKING           = 'packing';
 
     protected $fillable = [
-        'nom', 'prenom', 'phone', 'ville', 'quartier', 'type',
+        'nom', 'prenom', 'phone', 'ville', 'quartier', 'type','vehicule_id',
         // 'reference' // générée automatiquement
     ];
 
+    public function vehicule()
+    {
+        return $this->belongsTo(Vehicule::class);
+    }
+    
     protected static function booted(): void
     {
         static::creating(function (self $contact) {
