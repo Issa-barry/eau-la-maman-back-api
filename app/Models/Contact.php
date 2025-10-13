@@ -16,31 +16,49 @@ class Contact extends Model
     public const TYPE_PACKING           = 'packing';
 
     protected $fillable = [
-        'nom','prenom','phone','ville','quartier','type',
-        // 'reference' //  on NE remplit pas depuis le client : générée automatiquement
+        'nom', 'prenom', 'phone', 'ville', 'quartier', 'type',
+        // 'reference' // générée automatiquement
     ];
 
     protected static function booted(): void
     {
         static::creating(function (self $contact) {
             if (empty($contact->reference)) {
-                $contact->reference = self::generateUniqueReference();
+                $contact->reference = self::generateUniqueReference($contact);
             }
         });
     }
 
-    protected static function generateUniqueReference(): string
+    /**
+     * Génère une référence unique au format LLNNNN (ex: AB1234).
+     * LL = 2 lettres majuscules (initiales si disponibles, sinon aléatoires)
+     * NNNN = 4 chiffres (0000..9999)
+     */
+    protected static function generateUniqueReference(?self $contact = null): string
     {
-        // Format: CT-YYYY-XXXXXX (lettres/chiffres)
-        $prefix = 'CT-'.date('Y').'-';
+        $l1 = $contact && $contact->prenom ? Str::upper(Str::substr($contact->prenom, 0, 1)) : null;
+        $l2 = $contact && $contact->nom    ? Str::upper(Str::substr($contact->nom, 0, 1))    : null;
+
+        if (!$l1) $l1 = chr(mt_rand(65, 90)); // A-Z
+        if (!$l2) $l2 = chr(mt_rand(65, 90)); // A-Z
+
+        $letters = $l1.$l2;
+
         do {
-            $candidate = $prefix . strtoupper(Str::random(6));
+            $digits    = str_pad((string) mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+            $candidate = $letters.$digits; // AB1234
         } while (self::where('reference', $candidate)->exists());
 
         return $candidate;
     }
 
-    // Helpers
+    // Normalisation simple du téléphone (utile si unique)
+    public function setPhoneAttribute($value): void
+    {
+        $this->attributes['phone'] = preg_replace('/\s+/', '', trim((string) $value));
+    }
+
+    // Helper
     public function getNomCompletAttribute(): string
     {
         return trim(($this->prenom ?? '').' '.($this->nom ?? ''));

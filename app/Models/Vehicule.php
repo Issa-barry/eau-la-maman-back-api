@@ -12,17 +12,16 @@ class Vehicule extends Model
     protected $table = 'vehicules';
 
     protected $fillable = [
-        'type', 'marque', 'immatriculation',
-        'owner_contact_id', 'livreur_contact_id',
+        'type',
+        'immatriculation',
+        'nom_proprietaire',
+        'prenom_proprietaire',
+        'phone_proprietaire',
     ];
 
-    public function owner()
-    {
-        return $this->belongsTo(Contact::class, 'owner_contact_id');
-    }
-
+    // Un véhicule peut être lié à un seul contact de type 'livreur'
     public function livreur()
     {
-        return $this->belongsTo(Contact::class, 'livreur_contact_id');
+        return $this->hasOne(Contact::class, 'vehicule_id')->where('type', Contact::TYPE_LIVREUR);
     }
 }

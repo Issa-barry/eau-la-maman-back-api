@@ -1,3 +1,4 @@
+// database/migrations/xxxx_xx_xx_xxxxxx_create_vehicules_table.php
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -11,19 +12,12 @@ return new class extends Migration {
             $t->id();
 
             $t->enum('type', ['camion','fourgonette','tricycle'])->index();
-            $t->string('marque')->nullable();
-            $t->string('immatriculation', 60)->nullable()->unique();
+            $t->string('immatriculation', 60)->unique();
 
-            $t->foreignId('owner_contact_id')
-                ->constrained('contacts')
-                ->cascadeOnUpdate()
-                ->restrictOnDelete();
-
-            $t->foreignId('livreur_contact_id')
-                ->unique()
-                ->constrained('contacts')
-                ->cascadeOnUpdate()
-                ->restrictOnDelete();
+            // Propriétaire directement dans la table
+            $t->string('nom_proprietaire', 120);
+            $t->string('prenom_proprietaire', 120);
+            $t->string('phone_proprietaire', 30);
 
             $t->timestamps();
         });

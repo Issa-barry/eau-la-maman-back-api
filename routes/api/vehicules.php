@@ -12,8 +12,8 @@ Route::prefix('vehicules')->group(function () {
     Route::get('/{id}',   [VehiculesIndexShowController::class, 'show']);
 
     Route::post('/create',       VehiculeStoreController::class);
-    Route::match(['put','patch'], '/{vehicule}', VehiculeUpdateController::class);
-    Route::delete('/{vehicule}', VehiculeDeleteController::class);
+    // Route::match(['put','patch'], '/updateById/{id}', VehiculeUpdateController::class);
+    Route::delete('/{id}', VehiculeDeleteController::class);
 });
 
 

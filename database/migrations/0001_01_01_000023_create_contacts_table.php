@@ -10,18 +10,25 @@ return new class extends Migration {
         Schema::create('contacts', function (Blueprint $table) {
             $table->id();
 
-            //  Référence fonctionnelle unique (ex: CT-2025-AB12CD)
-            $table->string('reference', 32)->unique()->index();
+            // Référence fonctionnelle unique (LLNNNN, ex: AB1234)
+            $table->string('reference', 6)->unique()->index();
 
             // Infos d’identité
-            $table->string('nom')->nullable();
-            $table->string('prenom')->nullable();
+            $table->string('nom')->nullable()->index();
+            $table->string('prenom')->nullable()->index();
             $table->string('phone', 30)->unique();
             $table->string('ville')->nullable();
             $table->string('quartier')->nullable();
 
             // Typage métier
             $table->enum('type', ['client_specifique','livreur','proprietaire','packing'])->index();
+
+            // Lien optionnel vers un véhicule (pour les livreurs)
+            $table->foreignId('vehicule_id')
+                ->nullable()
+                ->constrained('vehicules')
+                ->cascadeOnUpdate()
+                ->nullOnDelete();
 
             $table->timestamps();
         });

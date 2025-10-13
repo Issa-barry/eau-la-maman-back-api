@@ -20,14 +20,14 @@ class VehiculeStoreController extends Controller
     {
         try {
             $data = $request->validate([
-                'type'               => ['required', Rule::in(['camion','fourgonette','tricycle'])],
-                'marque'             => ['nullable','string','max:120'],
-                'immatriculation'    => ['nullable','string','max:60','unique:vehicules,immatriculation'],
-                'owner_contact_id'   => ['required', Rule::exists('contacts','id')->where('type','proprietaire')],
-                'livreur_contact_id' => ['required', Rule::exists('contacts','id')->where('type','livreur'), 'unique:vehicules,livreur_contact_id'],
+                'type'                => ['required', Rule::in(['camion','fourgonette','tricycle'])],
+                'immatriculation'     => ['required','string','max:60','unique:vehicules,immatriculation'],
+                'nom_proprietaire'    => ['required','string','max:120'],
+                'prenom_proprietaire' => ['required','string','max:120'],
+                'phone_proprietaire'  => ['required','string','max:30'],
             ]);
 
-            $vehicule = Vehicule::create($data)->load(['owner','livreur']);
+            $vehicule = Vehicule::create($data);
 
             return $this->responseJson(true, 'Véhicule créé.', $vehicule, 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -35,7 +35,7 @@ class VehiculeStoreController extends Controller
         } catch (QueryException $e) {
             Log::error('Vehicule create failed', ['error' => $e->getMessage()]);
             return $this->responseJson(false, 'Erreur lors de la création du véhicule.', null, 500);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             Log::error('Vehicule create unexpected', ['error' => $e->getMessage()]);
             return $this->responseJson(false, 'Erreur inattendue.', null, 500);
         }
