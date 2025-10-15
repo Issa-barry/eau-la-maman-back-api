@@ -21,14 +21,7 @@ return new class extends Migration {
             $table->string('quartier')->nullable();
 
             // Typage métier
-            $table->enum('type', ['client_specifique','livreur','proprietaire','packing'])->index();
-
-            // Lien optionnel vers un véhicule (pour les livreurs)
-            $table->foreignId('vehicule_id')
-                ->nullable()
-                ->constrained('vehicules')
-                ->cascadeOnUpdate()
-                ->nullOnDelete();
+            $table->enum('type', ['client_specifique','packing'])->index();
 
             $table->timestamps();
         });

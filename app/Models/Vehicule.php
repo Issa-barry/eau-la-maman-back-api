@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Vehicule extends Model
 {
@@ -12,16 +12,41 @@ class Vehicule extends Model
     protected $table = 'vehicules';
 
     protected $fillable = [
+        'nom',
         'type',
         'immatriculation',
+
+        // Propriétaire
         'nom_proprietaire',
         'prenom_proprietaire',
         'phone_proprietaire',
+
+        // Livreur
+        'nom_livreur',
+        'prenom_livreur',
+        'phone_livreur',
+
+        // Statut
+        'statut',
     ];
 
-    // Un véhicule peut être lié à un seul contact de type 'livreur'
-    public function livreur()
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
+    /**
+     * Attributs virtuels pour concaténer les noms complets
+     */
+    protected $appends = ['nom_complet_proprietaire', 'nom_complet_livreur'];
+
+    public function getNomCompletProprietaireAttribute(): ?string
     {
-        return $this->hasOne(Contact::class, 'vehicule_id')->where('type', Contact::TYPE_LIVREUR);
+        return trim("{$this->prenom_proprietaire} {$this->nom_proprietaire}") ?: null;
+    }
+
+    public function getNomCompletLivreurAttribute(): ?string
+    {
+        return trim("{$this->prenom_livreur} {$this->nom_livreur}") ?: null;
     }
 }

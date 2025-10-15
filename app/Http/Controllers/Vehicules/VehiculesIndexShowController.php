@@ -14,27 +14,25 @@ use Throwable;
 
 class VehiculesIndexShowController extends Controller
 {
-    use JsonResponseTrait; 
+    use JsonResponseTrait;
 
-    // GET /vehicules?type=&owner_contact_id=&livreur_contact_id=&per_page=
+    // GET /vehicules/all?type=&owner_contact_id=&livreur_contact_id=&per_page=&page=
     public function index(Request $r)
     {
         try {
             $r->validate([
                 'type'               => 'nullable|in:camion,fourgonette,tricycle',
-                'owner_contact_id'   => 'nullable|integer|min:1',
-                'livreur_contact_id' => 'nullable|integer|min:1',
                 'per_page'           => 'nullable|integer|min:1|max:100',
+                'page'               => 'nullable|integer|min:1',
             ]);
 
-            $q = Vehicule::query()->with(['livreur']);
+            //  Pas d’eager-load sur une relation non garantie côté BDD
+            $q = Vehicule::query();
 
-            if ($r->filled('type'))               $q->where('type', $r->input('type'));
-            if ($r->filled('owner_contact_id'))   $q->where('owner_contact_id', (int) $r->input('owner_contact_id'));
-            if ($r->filled('livreur_contact_id')) $q->where('livreur_contact_id', (int) $r->input('livreur_contact_id'));
-
+            if ($r->filled('type'))               { $q->where('type', $r->input('type')); }
+  
             $perPage = (int) $r->input('per_page', 15);
-            $perPage = ($perPage < 1 || $perPage > 100) ? 15 : $perPage;
+            if ($perPage < 1 || $perPage > 100)   { $perPage = 15; }
 
             $rows = $q->latest()->paginate($perPage);
 
@@ -50,11 +48,11 @@ class VehiculesIndexShowController extends Controller
         }
     }
 
-    // GET /vehicules/{id}
+    // GET /vehicules/getById/{id}
     public function show($id)
     {
         try {
-            $vehicule = Vehicule::with(['owner','livreur'])->findOrFail($id);
+            $vehicule = Vehicule::findOrFail($id);
             return $this->responseJson(true, 'Détail du véhicule.', $vehicule);
         } catch (ModelNotFoundException $e) {
             return $this->responseJson(false, 'Véhicule introuvable.', null, 404);

@@ -13,11 +13,21 @@ return new class extends Migration {
 
             $t->enum('type', ['camion','fourgonette','tricycle'])->index();
             $t->string('immatriculation', 60)->unique();
+            $t->string('nom', 120)->nullable()->index();
 
-            // Propriétaire directement dans la table
+            // Propriétaire  
             $t->string('nom_proprietaire', 120);
             $t->string('prenom_proprietaire', 120);
             $t->string('phone_proprietaire', 30);
+
+            // Livreur  
+            $t->string('nom_livreur', 120);
+            $t->string('prenom_livreur', 120);
+            $t->string('phone_livreur', 30);
+
+            // Statut
+            $t->enum('statut', ['active', 'attente', 'bloque', 'archive'])->default('active');
+
 
             $t->timestamps();
         });

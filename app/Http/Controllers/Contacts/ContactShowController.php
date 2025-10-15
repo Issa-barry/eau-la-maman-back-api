@@ -17,47 +17,48 @@ class ContactShowController extends Controller
     use JsonResponseTrait;
 
     // GET /contacts/all?type=&search=&per_page=
-    public function index(Request $r)
-    {
-        try {
-            $r->validate([
-                'type'     => 'nullable|in:client_specifique,livreur,proprietaire,packing',
-                'search'   => 'nullable|string|max:100',
-                'per_page' => 'nullable|integer|min:1|max:100',
-            ]);
+    // GET /contacts/all?type=&search=&per_page=
+public function index(Request $r)
+{
+    try {
+        $r->validate([
+            'type'     => 'nullable|in:client_specifique,packing', // ✅ aligné à la BDD
+            'search'   => 'nullable|string|max:100',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
 
-            $q = Contact::query()
-                ->with(['vehicule:id,type,immatriculation,nom_proprietaire,prenom_proprietaire,phone_proprietaire']); // ✅
+        $q = Contact::query(); // ✅ pas de with('vehicule')
 
-            if ($r->filled('type')) {
-                $q->where('type', $r->input('type'));
-            }
-
-            if ($search = trim((string) $r->input('search', ''))) {
-                $q->where(function ($qq) use ($search) {
-                    $qq->where('nom', 'like', "%{$search}%")
-                        ->orWhere('prenom', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%")
-                        ->orWhere('ville', 'like', "%{$search}%")
-                        ->orWhere('quartier', 'like', "%{$search}%")
-                        ->orWhere('reference', 'like', "%{$search}%");
-                });
-            }
-
-            $perPage = (int) $r->input('per_page', 15);
-            $perPage = ($perPage < 1 || $perPage > 100) ? 15 : $perPage;
-
-            return $this->responseJson(true, 'Liste des contacts.', $q->latest()->paginate($perPage));
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return $this->responseJson(false, 'Échec de validation.', $e->errors(), 422);
-        } catch (\Illuminate\Database\QueryException $e) {
-            \Log::error('Contacts index query error', ['error' => $e->getMessage()]);
-            return $this->responseJson(false, 'Erreur lors de la récupération des contacts.', null, 500);
-        } catch (\Throwable $e) {
-            \Log::error('Contacts index unexpected error', ['error' => $e->getMessage()]);
-            return $this->responseJson(false, 'Erreur inattendue.', null, 500);
+        if ($r->filled('type')) {
+            $q->where('type', $r->input('type'));
         }
+
+        if ($search = trim((string) $r->input('search', ''))) {
+            $q->where(function ($qq) use ($search) {
+                $qq->where('nom', 'like', "%{$search}%")
+                   ->orWhere('prenom', 'like', "%{$search}%")
+                   ->orWhere('phone', 'like', "%{$search}%")
+                   ->orWhere('ville', 'like', "%{$search}%")
+                   ->orWhere('quartier', 'like', "%{$search}%")
+                   ->orWhere('reference', 'like', "%{$search}%");
+            });
+        }
+
+        $perPage = (int) $r->input('per_page', 15);
+        $perPage = ($perPage < 1 || $perPage > 100) ? 15 : $perPage;
+
+        return $this->responseJson(true, 'Liste des contacts.', $q->latest()->paginate($perPage));
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return $this->responseJson(false, 'Échec de validation.', $e->errors(), 422);
+    } catch (\Illuminate\Database\QueryException $e) {
+        \Log::error('Contacts index query error', ['error' => $e->getMessage()]);
+        return $this->responseJson(false, 'Erreur lors de la récupération des contacts.', null, 500);
+    } catch (\Throwable $e) {
+        \Log::error('Contacts index unexpected error', ['error' => $e->getMessage()]);
+        return $this->responseJson(false, 'Erreur 500 inattendue.', null, 500);
     }
+} 
+
 
     public function getById($id)
     {

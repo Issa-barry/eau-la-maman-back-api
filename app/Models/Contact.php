@@ -10,21 +10,23 @@ class Contact extends Model
 {
     use HasFactory;
 
+    // Types alignés avec la migration
     public const TYPE_CLIENT_SPECIFIQUE = 'client_specifique';
-    public const TYPE_LIVREUR           = 'livreur';
-    public const TYPE_PROPRIETAIRE      = 'proprietaire';
     public const TYPE_PACKING           = 'packing';
 
+    protected $table = 'contacts';
+
     protected $fillable = [
-        'nom', 'prenom', 'phone', 'ville', 'quartier', 'type','vehicule_id',
-        // 'reference' // générée automatiquement
+        'nom', 'prenom', 'phone', 'ville', 'quartier', 'type',
+        // 'reference' générée automatiquement
     ];
 
-    public function vehicule()
-    {
-        return $this->belongsTo(Vehicule::class);
-    }
-    
+    // Pour exposer nom_complet dans les réponses JSON si tu veux
+    protected $appends = ['nom_complet']; 
+
+    /* ---------------------------------
+     | Hooks : référence auto (LLNNNN)
+     * --------------------------------*/
     protected static function booted(): void
     {
         static::creating(function (self $contact) {
@@ -35,9 +37,7 @@ class Contact extends Model
     }
 
     /**
-     * Génère une référence unique au format LLNNNN (ex: AB1234).
-     * LL = 2 lettres majuscules (initiales si disponibles, sinon aléatoires)
-     * NNNN = 4 chiffres (0000..9999)
+     * Génère une référence unique LLNNNN (ex: AB1234).
      */
     protected static function generateUniqueReference(?self $contact = null): string
     {
@@ -57,15 +57,40 @@ class Contact extends Model
         return $candidate;
     }
 
-    // Normalisation simple du téléphone (utile si unique)
+    /* ---------------------------------
+     | Mutators / Accessors
+     * --------------------------------*/
+    // Nettoyage léger du téléphone (conserve les + et chiffres si tu veux étendre)
     public function setPhoneAttribute($value): void
     {
         $this->attributes['phone'] = preg_replace('/\s+/', '', trim((string) $value));
     }
 
-    // Helper
     public function getNomCompletAttribute(): string
     {
         return trim(($this->prenom ?? '').' '.($this->nom ?? ''));
+    }
+
+    /* ---------------------------------
+     | Scopes pratiques
+     * --------------------------------*/
+    public function scopeOfType($q, ?string $type)
+    {
+        return $type ? $q->where('type', $type) : $q;
+    }
+
+    public function scopeSearch($q, ?string $term)
+    {
+        if (!$term) return $q;
+        $s = trim($term);
+
+        return $q->where(function ($qq) use ($s) {
+            $qq->where('reference', 'like', "%{$s}%")
+               ->orWhere('nom', 'like', "%{$s}%")
+               ->orWhere('prenom', 'like', "%{$s}%")
+               ->orWhere('phone', 'like', "%{$s}%")
+               ->orWhere('ville', 'like', "%{$s}%")
+               ->orWhere('quartier', 'like', "%{$s}%");
+        });
     }
 }

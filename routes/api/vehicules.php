@@ -9,11 +9,12 @@ use App\Http\Controllers\Vehicules\VehiculeDeleteController;
 Route::prefix('vehicules')->group(function () {
     Route::get('/',        [VehiculesIndexShowController::class, 'index']);
     Route::get('/all',    [VehiculesIndexShowController::class, 'index']);
-    Route::get('/{id}',   [VehiculesIndexShowController::class, 'show']);
+    Route::get('/getById/{id}',   [VehiculesIndexShowController::class, 'show']);
 
     Route::post('/create',       VehiculeStoreController::class);
     // Route::match(['put','patch'], '/updateById/{id}', VehiculeUpdateController::class);
+    Route::match(['put','patch'], '/{vehicule}', [VehiculeUpdateController::class, 'updateById']);
     Route::delete('/{id}', VehiculeDeleteController::class);
 });
 
-
+ 
