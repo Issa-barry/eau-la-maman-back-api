@@ -25,9 +25,13 @@ class VehiculeUpdateController extends Controller
             $data = $request->validate([
                 'type'                => [Rule::in(['camion','fourgonette','tricycle'])],
                 'immatriculation'     => ['string','max:60', Rule::unique('vehicules','immatriculation')->ignore($vehicule->id)],
+                 'nom'    => ['string','max:120'],
                 'nom_proprietaire'    => ['string','max:120'],
                 'prenom_proprietaire' => ['string','max:120'],
                 'phone_proprietaire'  => ['string','max:30'],
+                'nom_livreur'    => ['string','max:120'],
+                'prenom_livreur' => ['string','max:120'],
+                'phone_livreur'  => ['string','max:30'],
             ]);
 
             $vehicule->update($data);
