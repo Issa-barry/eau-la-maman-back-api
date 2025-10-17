@@ -49,9 +49,9 @@ class StatistiqueCommandeController extends Controller
             if ($to)   $base->whereDate($dateCol, '<=', $to);
 
             // Variantes de statuts tolérées
-            $BROUILLON  = ['brouillon'];
+            // $BROUILLON  = ['brouillon'];
             $EN_LIVRAISON = ['livraison_en_cours'];
-            $LIVRE      = ['livré', 'livre'];
+            // $LIVRE      = ['livré', 'livre'];
             $CLOTURE    = ['cloturé', 'cloture', 'clôturé', 'clôture'];
             $ANNULE     = ['annulé', 'annule'];
 
@@ -60,14 +60,14 @@ class StatistiqueCommandeController extends Controller
             $sumAll   = $amountCol ? (float) (clone $base)->sum($amountCol) : 0.0;
 
             // Par statut
-            $cBrouillon = (clone $base)->whereIn('statut', $BROUILLON)->count();
-            $sBrouillon = $amountCol ? (float) (clone $base)->whereIn('statut', $BROUILLON)->sum($amountCol) : 0.0;
+            // $cBrouillon = (clone $base)->whereIn('statut', $BROUILLON)->count();
+            // $sBrouillon = $amountCol ? (float) (clone $base)->whereIn('statut', $BROUILLON)->sum($amountCol) : 0.0;
 
             $cEnLiv    = (clone $base)->whereIn('statut', $EN_LIVRAISON)->count();
             $sEnLiv    = $amountCol ? (float) (clone $base)->whereIn('statut', $EN_LIVRAISON)->sum($amountCol) : 0.0;
 
-            $cLivre    = (clone $base)->whereIn('statut', $LIVRE)->count();
-            $sLivre    = $amountCol ? (float) (clone $base)->whereIn('statut', $LIVRE)->sum($amountCol) : 0.0;
+            // $cLivre    = (clone $base)->whereIn('statut', $LIVRE)->count();
+            // $sLivre    = $amountCol ? (float) (clone $base)->whereIn('statut', $LIVRE)->sum($amountCol) : 0.0;
 
             $cCloture  = (clone $base)->whereIn('statut', $CLOTURE)->count();
             $sCloture  = $amountCol ? (float) (clone $base)->whereIn('statut', $CLOTURE)->sum($amountCol) : 0.0;
@@ -84,9 +84,9 @@ class StatistiqueCommandeController extends Controller
                     'count'         => (int) $countAll,
                     'total'         => (float) $sumAll,            // somme montant_total (si présent)
                     'par_statut'    => [
-                        'brouillon'           => ['count' => (int) $cBrouillon, 'total' => (float) $sBrouillon],
+                        // 'brouillon'           => ['count' => (int) $cBrouillon, 'total' => (float) $sBrouillon],
                         'livraison_en_cours'  => ['count' => (int) $cEnLiv,    'total' => (float) $sEnLiv],
-                        'livre'               => ['count' => (int) $cLivre,    'total' => (float) $sLivre],
+                        // 'livre'               => ['count' => (int) $cLivre,    'total' => (float) $sLivre],
                         'cloture'             => ['count' => (int) $cCloture,  'total' => (float) $sCloture],
                         'annule'              => ['count' => (int) $cAnnule,   'total' => (float) $sAnnule],
                     ],

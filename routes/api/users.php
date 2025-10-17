@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\MeController;
 use App\Http\Controllers\User\Clients\CreateClientController;
 use App\Http\Controllers\User\Clients\DeleteClientController;
 use App\Http\Controllers\User\Clients\ShowClientController;
@@ -21,7 +22,8 @@ Route::prefix('users')->name('users.')->group(function () {
         Route::put('/users/clients/updateById/{id}', [UpdateClientController::class, 'update']);
         Route::delete('/clients/deleteByReference/{reference}', [DeleteClientController::class, 'destroy']);
 
-    Route::middleware(['auth:sanctum','throttle:60,1'])->group(function () {
+        // Avec Sanctum (connexion obligatoire )
+        Route::middleware(['auth:sanctum','throttle:60,1'])->group(function () {
         Route::post('/employes/create', [CreateEmployeController::class, 'store'])->name('employes.store');
 
         Route::get('/all', [ShowUserController::class, 'index'])->name('index');
@@ -51,6 +53,9 @@ Route::prefix('users')->name('users.')->group(function () {
             Route::delete('/users/delateById/{id}', [DeleteUserController::class, 'delateById']);
 
             Route::patch('/users/{id}/statutUpdate', [UserStatutController::class, 'updateStatut']);
+
+            // ME 
+             Route::get('/me', [MeController::class, 'show'])->name('users.me');
 
     });
 });

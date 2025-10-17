@@ -61,13 +61,13 @@ class StatistiqueFactureController extends Controller
                 ->get();
 
             // Sortie alignée sur les constantes du modèle
-            $BROUILLON = FactureLivraison::STATUT_BROUILLON; // 'brouillon'
+            // $BROUILLON = FactureLivraison::STATUT_BROUILLON; // 'brouillon'
             $PARTIEL   = FactureLivraison::STATUT_PARTIEL;   // 'partiel'
             $PAYE      = FactureLivraison::STATUT_PAYE;      // 'payé'
             $IMPAYE    = FactureLivraison::STATUT_IMPAYE;    // 'impayé'
 
             $parStatut = [
-                $BROUILLON => ['count' => 0, 'total_ttc' => 0.0],
+                // $BROUILLON => ['count' => 0, 'total_ttc' => 0.0],
                 $PARTIEL   => ['count' => 0, 'total_ttc' => 0.0],
                 $PAYE      => ['count' => 0, 'total_ttc' => 0.0],
                 $IMPAYE    => ['count' => 0, 'total_ttc' => 0.0],
@@ -79,7 +79,7 @@ class StatistiqueFactureController extends Controller
 
                 // Map des variantes -> constantes modèle
                 $key = match (true) {
-                    $norm === 'brouillon'                                     => $BROUILLON,
+                    // $norm === 'brouillon'                                     => $BROUILLON,
                     $norm === 'partiel' || str_contains($norm, 'partiel')     => $PARTIEL,
                     in_array($norm, ['paye','payee','paye_e','payee_e','paye_s','payee_s','payees','payes']) => $PAYE,
                     in_array($norm, ['impaye','impayee','impaye_e','impayee_e','impayes','impayees']) => $IMPAYE,
@@ -102,7 +102,7 @@ class StatistiqueFactureController extends Controller
                     'count'            => (int) $countAll,
                     'total_ttc'        => (float) $sumAllTtc,
                     'montant_du_total' => (float) $sumDu,
-                    // 👇 même principe que "commandes.par_statut"
+                    // même principe que "commandes.par_statut"
                     'par_statut'       => $parStatut,
                 ],
             ]);
@@ -119,7 +119,7 @@ class StatistiqueFactureController extends Controller
 
     private function emptyResponse(?Carbon $from, ?Carbon $to)
     {
-        $BROUILLON = FactureLivraison::STATUT_BROUILLON;
+        // $BROUILLON = FactureLivraison::STATUT_BROUILLON;
         $PARTIEL   = FactureLivraison::STATUT_PARTIEL;
         $PAYE      = FactureLivraison::STATUT_PAYE;
         $IMPAYE    = FactureLivraison::STATUT_IMPAYE;
@@ -131,7 +131,7 @@ class StatistiqueFactureController extends Controller
                 'total_ttc'        => 0,
                 'montant_du_total' => 0,
                 'par_statut'       => [
-                    $BROUILLON => ['count' => 0, 'total_ttc' => 0],
+                    // $BROUILLON => ['count' => 0, 'total_ttc' => 0],
                     $PARTIEL   => ['count' => 0, 'total_ttc' => 0],
                     $PAYE      => ['count' => 0, 'total_ttc' => 0],
                     $IMPAYE    => ['count' => 0, 'total_ttc' => 0],
