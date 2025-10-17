@@ -14,7 +14,7 @@ class Commande extends Model
 
     protected $fillable = [
         'numero',
-        'contact_id',
+        'vehicule_id',     // ⬅️ remplace contact_id
         'montant_total',
         'statut',
         'reduction',
@@ -36,10 +36,9 @@ class Commande extends Model
     /**
      * Relations
      */
-    public function contact(): BelongsTo
+    public function vehicule(): BelongsTo
     {
-        // Si ton contact est un Contact, mets Contact::class
-        return $this->belongsTo(User::class, 'contact_id');
+        return $this->belongsTo(Vehicule::class, 'vehicule_id'); // ⬅️
     }
 
     public function lignes(): HasMany
@@ -55,33 +54,30 @@ class Commande extends Model
     public function livraisonLignes(): HasManyThrough
     {
         return $this->hasManyThrough(
-            LivraisonLigne::class, // modèle final
-            Livraison::class,      // modèle intermédiaire
-            'commande_id',         // FK de livraisons vers commandes
-            'livraison_id',        // FK de livraison_lignes vers livraisons
-            'id',                  // PK locale (commandes)
-            'id'                   // PK locale (livraisons)
+            LivraisonLigne::class,
+            Livraison::class,
+            'commande_id',
+            'livraison_id',
+            'id',
+            'id'
         );
     }
 
     /**
-     * Accesseurs calculés (requêtes, pas collections)
+     * Accesseurs calculés
      */
     public function getQteTotalAttribute(): int
     {
-        // Somme des quantités commandées
         return (int) $this->lignes()->sum('quantite_commandee');
     }
 
     public function getQteLivreeAttribute(): int
     {
-        // Somme réelle livrée (toutes les livraisons de la commande)
         return (int) $this->livraisonLignes()->sum('quantite');
     }
 
     public function getQteRestanteAttribute(): int
     {
-        // On ne se base plus sur quantite_restante des lignes
         return max(0, $this->qte_total - $this->qte_livree);
     }
 
@@ -138,9 +134,8 @@ class Commande extends Model
 
     public function scopeAvecQuantiteRestante($query)
     {
-        // Basé sur le nouveau calcul (qte_total - qte_livree)
         return $query->where(function ($q) {
-            $q->whereHas('lignes') // s'assurer qu'il y a des lignes
+            $q->whereHas('lignes')
               ->whereRaw('(SELECT COALESCE(SUM(quantite_commandee),0) FROM commande_lignes WHERE commande_lignes.commande_id = commandes.id)
                            >
                            (SELECT COALESCE(SUM(livraison_lignes.quantite),0)
@@ -150,9 +145,9 @@ class Commande extends Model
         });
     }
 
-    public function scopeParContact($query, $contactId)
+    public function scopeParVehicule($query, $vehiculeId) // ⬅️ remplace scopeParContact
     {
-        return $query->where('contact_id', $contactId);
+        return $query->where('vehicule_id', $vehiculeId);
     }
 
     public function scopeParStatut($query, $statut)
@@ -204,11 +199,7 @@ class Commande extends Model
 
     public function marquerCommeLivree(): bool
     {
-        // Ici on autorise le passage à "livré" même si partiellement,
-        // si ta règle métier le veut (sinon garde le check is_entierement_livree)
         return $this->update(['statut' => 'livré']);
-        // Ancien comportement :
-        // return $this->is_entierement_livree ? $this->update(['statut' => 'livré']) : false;
     }
 
     public function cloturer(): bool
@@ -219,7 +210,7 @@ class Commande extends Model
     }
 
     /**
-     * Méthodes de calcul (montants)
+     * Montants
      */
     public function getMontantBrut(): float
     {
@@ -243,11 +234,9 @@ class Commande extends Model
 
     public function getProduitsManquants()
     {
-        // produit “manquant” = encore du restant
-        // On calcule via SQL : quantite_commandee - livrée > 0
         $ligneIds = $this->lignes()->pluck('id');
 
-        $idsAvecRestant = CommandeLigne::query()
+        return CommandeLigne::query()
             ->whereIn('id', $ligneIds)
             ->selectRaw('commande_lignes.*, (quantite_commandee - COALESCE((
                 SELECT SUM(livraison_lignes.quantite)
@@ -256,12 +245,10 @@ class Commande extends Model
             ),0)) as restant_calc')
             ->having('restant_calc', '>', 0)
             ->get();
-
-        return $idsAvecRestant;
     }
 
     /**
-     * Boot du modèle
+     * Boot & Numéro
      */
     protected static function boot()
     {
@@ -274,9 +261,6 @@ class Commande extends Model
         });
     }
 
-    /**
-     * Génère un numéro de commande unique
-     */
     public static function generateNumero(): string
     {
         $lastCommande = static::latest('id')->first();

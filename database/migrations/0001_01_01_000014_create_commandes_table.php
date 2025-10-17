@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('commandes', function (Blueprint $table) {
            $table->id();
             $table->string('numero')->unique();
-            $table->foreignId('contact_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('vehicule_id')->constrained('vehicules')->onDelete('cascade');
             $table->decimal('montant_total', 12, 2)->default(0);
             $table->integer('qte_total')->default(0);
             $table->decimal('reduction', 8, 2)->default(0); 

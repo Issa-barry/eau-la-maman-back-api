@@ -10,18 +10,16 @@ use Illuminate\Support\Facades\Auth;
 
 // Auth::routes(['verify' => true]);
 
-use App\Models\Transfert;
-use App\Mail\TransfertNotification;
  
-
-Route::get('/preview-email', function () {
-    $transfert = \App\Models\Transfert::with(['deviseSource', 'deviseCible'])->first(); // Exemple avec données réelles
-
-    return view('emails.transfertNotification', ['transfert' => $transfert]);
-});
-
-Route::get('/preview-email-retrait', function () {
-    $transfert = \App\Models\Transfert::with(['deviseSource', 'deviseCible'])->first(); // Exemple avec données réelles
-
-    return view('emails.transfertRetire', ['transfert' => $transfert]);
+ 
+ Route::get('/_preview/reset-mail', function () {
+    $fakeUser = \App\Models\User::first() ?? (object)['prenom' => 'Issa', 'nom' => 'Barry', 'email' => 'issa@example.com'];
+    return view('emails.passwordReset', [
+        'appName'       => config('app.name', 'EAU-LA-MAMAN'),
+        'url'           => 'http://localhost:4200/auth/newpassword?token=demo&email=issa%40example.com',
+        'expiresIn'     => '60 minutes',
+        'user'          => $fakeUser,
+        'userFirstName' => 'Issa',
+        'userLastName'  => 'Barry',
+    ]);
 });

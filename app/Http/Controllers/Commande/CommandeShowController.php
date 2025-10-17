@@ -18,8 +18,8 @@ class CommandeShowController extends Controller
      * &withLivraisons=1
      * &search=...
      * &statut=...
-     * &periode=aujourdhui|cette_semaine|ce_mois|cette_annee   👈 ajouté
-     * &livreur_id=...
+     * &periode=aujourdhui|cette_semaine|ce_mois|cette_annee
+     * &vehicule_id=...         (alias rétrocompatible: livreur_id)
      * &date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
      * &total_min=...&total_max=...
      * &qte_min=...&qte_max=...
@@ -34,10 +34,11 @@ class CommandeShowController extends Controller
                 'withLivraisons' => 'boolean',
                 'search'         => 'nullable|string|max:100',
                 'statut'         => 'nullable|in:brouillon,livraison_en_cours,livré,cloturé,annulé',
-                'livreur_id'     => 'nullable|integer',
+                'vehicule_id'    => 'nullable|integer',
+                'livreur_id'     => 'nullable|integer', // alias legacy
                 'date_from'      => 'nullable|date',
                 'date_to'        => 'nullable|date',
-                'periode'        => 'nullable|in:aujourdhui,cette_semaine,ce_mois,cette_annee', // 👈 ajouté
+                'periode'        => 'nullable|in:aujourdhui,cette_semaine,ce_mois,cette_annee',
                 'total_min'      => 'nullable|numeric|min:0',
                 'total_max'      => 'nullable|numeric|min:0',
                 'qte_min'        => 'nullable|integer|min:0',
@@ -48,12 +49,13 @@ class CommandeShowController extends Controller
             $withLivraisons = $r->boolean('withLivraisons', true);
 
             $with = [
-                'contact',
+                'vehicule', // ⬅️ remplace 'contact'
                 'lignes' => fn ($q) => $q
                     ->with('produit')
                     ->withSum('livraisonLignes as quantite_livree', 'quantite'),
             ];
             if ($withLivraisons) {
+                // conserve le chargement des lignes de chaque livraison
                 $with['livraisons.lignes'] = fn ($q) => $q->with('produit');
             }
 
@@ -62,25 +64,26 @@ class CommandeShowController extends Controller
                 ->withSum('lignes as qte_total', 'quantite_commandee')
                 ->withSum('livraisonLignes as qte_livree', 'quantite');
 
-            // 🔹 Filtres classiques
+            // 🔹 Filtres
             if (!empty($v['statut']))     $q->where('statut', $v['statut']);
-            if (!empty($v['livreur_id'])) $q->where('contact_id', $v['livreur_id']);
+
+            // support legacy: si livreur_id fourni, on le traite comme vehicule_id
+            $vehiculeId = $v['vehicule_id'] ?? $v['livreur_id'] ?? null;
+            if (!empty($vehiculeId)) $q->where('vehicule_id', $vehiculeId);
+
             if (!empty($v['date_from']))  $q->whereDate('created_at', '>=', $v['date_from']);
             if (!empty($v['date_to']))    $q->whereDate('created_at', '<=', $v['date_to']);
             if (!empty($v['total_min']))  $q->where('montant_total', '>=', $v['total_min']);
             if (!empty($v['total_max']))  $q->where('montant_total', '<=', $v['total_max']);
 
-            // 🔹 Nouveau filtre période
+            // 🔹 Période
             if (!empty($v['periode'])) {
                 switch ($v['periode']) {
                     case 'aujourdhui':
                         $q->whereDate('created_at', Carbon::today());
                         break;
                     case 'cette_semaine':
-                        $q->whereBetween('created_at', [
-                            Carbon::now()->startOfWeek(),
-                            Carbon::now()->endOfWeek()
-                        ]);
+                        $q->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
                         break;
                     case 'ce_mois':
                         $q->whereYear('created_at', Carbon::now()->year)
@@ -92,19 +95,22 @@ class CommandeShowController extends Controller
                 }
             }
 
-            // 🔹 Recherche globale
+            // 🔹 Recherche globale (numéro + véhicule)
             if (!empty($v['search'])) {
                 $s = trim($v['search']);
                 $q->where(function ($qq) use ($s) {
                     $qq->where('numero', 'like', "%$s%")
-                       ->orWhereHas('contact', function ($cq) use ($s) {
-                           $cq->where('nom_complet', 'like', "%$s%")
-                              ->orWhere('phone', 'like', "%$s%");
+                       ->orWhereHas('vehicule', function ($vq) use ($s) {
+                           $vq->where('immatriculation', 'like', "%$s%")
+                              ->orWhere('type', 'like', "%$s%")
+                              ->orWhere('nom', 'like', "%$s%")
+                              ->orWhere('nom_proprietaire', 'like', "%$s%")
+                              ->orWhere('prenom_proprietaire', 'like', "%$s%");
                        });
                 });
             }
 
-            // 🔹 Filtres sur agrégats (HAVING)
+            // 🔹 Filtres HAVING
             if (isset($v['qte_min'])) $q->having('qte_livree', '>=', $v['qte_min']);
             if (isset($v['qte_max'])) $q->having('qte_livree', '<=', $v['qte_max']);
 
@@ -141,10 +147,8 @@ class CommandeShowController extends Controller
         }
     }
 
-    // showByNumero et show restent inchangés ...
     /**
      * GET /api/commandes/showByNumero/{numero}?withLivraisons=1
-     * Détail par numéro avec lignes (+ quantite_livree agrégée).
      */
     public function showByNumero(Request $request, string $numero)
     {
@@ -152,10 +156,10 @@ class CommandeShowController extends Controller
             $withLivraisons = $request->boolean('withLivraisons', true);
 
             $with = [
-                'contact',
+                'vehicule', // ⬅️ remplace 'contact'
                 'lignes' => fn ($q) => $q
                     ->with('produit')
-                    ->withSum('livraisonLignes as quantite_livree', 'quantite'), // 👈 colonne correcte
+                    ->withSum('livraisonLignes as quantite_livree', 'quantite'),
             ];
 
             if ($withLivraisons) {
@@ -177,5 +181,4 @@ class CommandeShowController extends Controller
             ], 500);
         }
     }
-
 }
