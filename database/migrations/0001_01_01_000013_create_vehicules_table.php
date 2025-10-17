@@ -15,7 +15,7 @@ return new class extends Migration {
             $t->string('immatriculation', 60)->unique();
             $t->string('nom', 120)->nullable()->index();
 
-            // Propriétaire  
+            // Propriétaire   
             $t->string('nom_proprietaire', 120);
             $t->string('prenom_proprietaire', 120);
             $t->string('phone_proprietaire', 30);

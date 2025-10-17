@@ -19,6 +19,4 @@ Route::middleware(['auth:sanctum'])
         Route::put('/updateById/{id}', [AgenceUpdateController::class, 'updateById'])->name('update');
         Route::delete('/deleteById/{id}', [AgenceDeleteController::class, 'deleteById'])->name('delete');
         Route::patch('/{id}/statutUpdate', [AgenceStatutController::class, 'updateStatut'])->name('statut.update');
-        Route::patch('/agences/{id}/statutUpdate', [AgenceStatutController::class, 'updateStatut'])->name('statut.update');
-
     });

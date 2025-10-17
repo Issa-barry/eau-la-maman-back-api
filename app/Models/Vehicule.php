@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Vehicule extends Model
 {
@@ -21,7 +22,7 @@ class Vehicule extends Model
         'prenom_proprietaire',
         'phone_proprietaire',
 
-        // Livreur
+        // Livreur (historique)
         'nom_livreur',
         'prenom_livreur',
         'phone_livreur',
@@ -35,9 +36,6 @@ class Vehicule extends Model
         'updated_at' => 'datetime',
     ];
 
-    /**
-     * Attributs virtuels pour concaténer les noms complets
-     */
     protected $appends = ['nom_complet_proprietaire', 'nom_complet_livreur'];
 
     public function getNomCompletProprietaireAttribute(): ?string
@@ -48,5 +46,11 @@ class Vehicule extends Model
     public function getNomCompletLivreurAttribute(): ?string
     {
         return trim("{$this->prenom_livreur} {$this->nom_livreur}") ?: null;
+    }
+
+    // ⬇️ Nouvelles relations
+    public function commandes(): HasMany
+    {
+        return $this->hasMany(Commande::class, 'vehicule_id');
     }
 }

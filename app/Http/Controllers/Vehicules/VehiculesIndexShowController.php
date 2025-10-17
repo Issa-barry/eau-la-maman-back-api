@@ -16,52 +16,63 @@ class VehiculesIndexShowController extends Controller
 {
     use JsonResponseTrait;
 
-    // GET /vehicules/all?type=&owner_contact_id=&livreur_contact_id=&per_page=&page=
-    public function index(Request $r)
-    {
-        try {
-            $r->validate([
-                'type'               => 'nullable|in:camion,fourgonette,tricycle',
-                'per_page'           => 'nullable|integer|min:1|max:100',
-                'page'               => 'nullable|integer|min:1',
-            ]);
+    /**
+     * GET /vehicules/all
+     * Params:
+     *  - immatriculation (string, optional) : recherche partielle (LIKE)
+     *  - type               (enum: camion,fourgonette,tricycle)
+     *  - owner_contact_id   (int)     // si tu l’utilises
+     *  - livreur_contact_id (int)     // si tu l’utilises
+     *  - per_page           (1..100)
+     *  - page               (>=1)
+     */
+   // app/Http/Controllers/Vehicules/VehiculesIndexShowController.php
 
-            //  Pas d’eager-load sur une relation non garantie côté BDD
-            $q = Vehicule::query();
+public function index(Request $r)
+{
+    try {
+        $r->validate([
+            'immatriculation'    => 'nullable|string|max:100',
+            'type'               => 'nullable|in:camion,fourgonette,tricycle',
+            'per_page'           => 'nullable|integer|min:1|max:100',
+            'page'               => 'nullable|integer|min:1',
+        ]);
 
-            if ($r->filled('type'))               { $q->where('type', $r->input('type')); }
-  
-            $perPage = (int) $r->input('per_page', 15);
-            if ($perPage < 1 || $perPage > 100)   { $perPage = 15; }
+        $q = Vehicule::query(); // ❌ pas de ->with()
 
-            $rows = $q->latest()->paginate($perPage);
-
-            return $this->responseJson(true, 'Liste des véhicules.', $rows);
-        } catch (ValidationException $e) {
-            return $this->responseJson(false, 'Échec de validation.', $e->errors(), 422);
-        } catch (QueryException $e) {
-            Log::error('Vehicules index query error', ['error' => $e->getMessage()]);
-            return $this->responseJson(false, 'Erreur lors de la récupération des véhicules.', null, 500);
-        } catch (Throwable $e) {
-            Log::error('Vehicules index unexpected error', ['error' => $e->getMessage()]);
-            return $this->responseJson(false, 'Erreur inattendue.', null, 500);
+        if ($r->filled('type')) {
+            $q->where('type', $r->input('type'));
         }
-    }
 
-    // GET /vehicules/getById/{id}
-    public function show($id)
-    {
-        try {
-            $vehicule = Vehicule::findOrFail($id);
-            return $this->responseJson(true, 'Détail du véhicule.', $vehicule);
-        } catch (ModelNotFoundException $e) {
-            return $this->responseJson(false, 'Véhicule introuvable.', null, 404);
-        } catch (QueryException $e) {
-            Log::error('Vehicule show query error', ['id' => $id, 'error' => $e->getMessage()]);
-            return $this->responseJson(false, 'Erreur lors de la récupération du véhicule.', null, 500);
-        } catch (Throwable $e) {
-            Log::error('Vehicule show unexpected error', ['id' => $id, 'error' => $e->getMessage()]);
-            return $this->responseJson(false, 'Erreur inattendue.', null, 500);
+        if ($r->filled('immatriculation')) {
+            $term = $r->query('immatriculation');
+            $term = str_replace(['\\','%','_'], ['\\\\','\%','\_'], $term);
+            $q->where('immatriculation', 'like', "%{$term}%");
         }
+
+        $perPage = max(1, min(100, (int) $r->input('per_page', 15)));
+        $rows = $q->latest()->paginate($perPage);
+
+        return $this->responseJson(true, 'Liste des véhicules.', $rows);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return $this->responseJson(false, 'Échec de validation.', $e->errors(), 422);
+    } catch (\Throwable $e) {
+        \Log::error('Vehicules index error', ['ex' => $e]);
+        return $this->responseJson(false, 'Erreur inattendue.', null, 500);
     }
+}
+
+public function show($id)
+{
+    try {
+        $vehicule = Vehicule::findOrFail($id); // ❌ pas de ->with()
+        return $this->responseJson(true, 'Détail du véhicule.', $vehicule);
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return $this->responseJson(false, 'Véhicule introuvable.', null, 404);
+    } catch (\Throwable $e) {
+        \Log::error('Vehicule show error', ['id' => $id, 'ex' => $e]);
+        return $this->responseJson(false, 'Erreur inattendue.', null, 500);
+    }
+}
+
 }
