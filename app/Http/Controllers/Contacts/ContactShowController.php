@@ -57,23 +57,21 @@ public function index(Request $r)
         \Log::error('Contacts index unexpected error', ['error' => $e->getMessage()]);
         return $this->responseJson(false, 'Erreur 500 inattendue.', null, 500);
     }
-} 
+}  
 
-
+ 
     public function getById($id)
-    {
-        try {
-            $contact = Contact::with(['vehicule:id,type,immatriculation,nom_proprietaire,prenom_proprietaire,phone_proprietaire'])
-                ->findOrFail($id); // ✅
-            return $this->responseJson(true, 'Détail du contact.', $contact);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->responseJson(false, 'Contact introuvable.', null, 404);
-        } catch (\Illuminate\Database\QueryException $e) {
-            \Log::error('Contact show query error', ['id' => $id, 'error' => $e->getMessage()]);
-            return $this->responseJson(false, 'Erreur lors de la récupération du contact.', null, 500);
-        } catch (\Throwable $e) {
-            \Log::error('Contact show unexpected error', ['id' => $id, 'error' => $e->getMessage()]);
-            return $this->responseJson(false, 'Erreur inattendue.', null, 500);
+        {
+            try {
+                $contact = Contact::findOrFail($id);   // 👈 plus de with('vehicule')
+                return $this->responseJson(true, 'Détail du contact.', $contact);
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+                return $this->responseJson(false, 'Contact introuvable.', null, 404);
+            } catch (\Throwable $e) {
+                \Log::error('Contact show unexpected error', ['id' => $id, 'error' => $e->getMessage()]);
+                return $this->responseJson(false, 'Erreur inattendue.', null, 500);
+            }
         }
-    }
+
 }
+ 

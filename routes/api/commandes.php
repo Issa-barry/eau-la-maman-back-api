@@ -6,12 +6,16 @@ use App\Http\Controllers\Commande\CommandeStatutController;
 use App\Http\Controllers\Commande\CommandeStoreController;
 use App\Http\Controllers\Commande\CommandeUpdateController;
 use App\Http\Controllers\Commande\CommandeDeleteController;
+use App\Http\Controllers\Commande\CommandeFactureImediaController;
 use App\Http\Controllers\Commande\CommandeValiderController;
 
 Route::prefix('commandes')->group(function () {
 //creation et modification 
 Route::post('/create', [CommandeStoreController::class, 'store']);
 Route::put('/updateByNumero/{numero}', [CommandeUpdateController::class, 'updateByNumero']);
+   
+Route::post('/imedia/create', [CommandeFactureImediaController::class, 'store']);// Creation commande + facture Imedia
+
 // Affichage
 Route::get('/', [CommandeShowController::class, 'index']); 
 Route::get('/showByNumero/{numero}', [CommandeShowController::class, 'showByNumero']); // /api/commandes/numero/CO00000001

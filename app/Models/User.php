@@ -13,43 +13,53 @@ use URL;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
-    // ---- Types de client ----
-    public const TYPE_CLIENT_SPECIFIQUE = 'specifique';
-    public const TYPE_CLIENT_VEHICULE   = 'vehicule';
-
-    // ---- Types de véhicule (si type_client = 'vehicule') ----
-    public const VEHICULE_CAMION       = 'camion';
-    public const VEHICULE_FOURGONETTE  = 'fourgonette';
-    public const VEHICULE_TRICYCLE     = 'tricycle';
-
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
+     * Attributs assignables en masse.
      */
     protected $fillable = [
         'email',
         'password',
         'reference',
         'civilite',
-        'nom_complet',
+        'prenom',
+        'nom',
         'phone',
         'date_naissance',
         'adresse_id',
         'role_id',
         'agence_id',
+        'statut',
+     ];
 
-        //  nouveaux champs
-        'type_client',                 // 'specifique' | 'vehicule'
-        'type_vehicule',               // 'camion' | 'fourgonette' | 'tricycle' (nullable si specifique)
-    ];
+    /**
+     * Attributs ajoutés automatiquement au JSON.
+     */
+    protected $appends = ['nom_complet'];
 
+    /**
+     * Accessor: nom complet (virtuel).
+     */
+    public function getNomCompletAttribute(): string
+    {
+        return trim(($this->prenom ?? '').' '.($this->nom ?? ''));
+    }
+
+    /**
+     * Mutator: normalise le téléphone (supprime espaces).
+     */
+    public function setPhoneAttribute($value): void
+    {
+        $this->attributes['phone'] = preg_replace('/\s+/', '', trim((string) $value));
+    }
+
+    /**
+     * Relations.
+     */
     public function role()
     {
-        return $this->roles()->first(); // Retourne le premier rôle associé
+        return $this->roles()->first();
     }
 
     public function adresse()
@@ -62,16 +72,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Agence::class);
     }
 
-    // Relation to include role data
+    /**
+     * Raccourci pour retourner le nom du premier rôle.
+     */
     public function getRoleAttribute()
     {
-        return $this->roles->pluck('name')->first(); // Return the first role name as string
+        return $this->roles->pluck('name')->first();
     }
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
+     * Attributs cachés (JSON).
      */
     protected $hidden = [
         'password',
@@ -79,92 +89,66 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * Casts.
      */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
-
-            // (optionnel, ici déjà string par défaut)
-            'type_client'       => 'string',
-            'vehicule_type'     => 'string',
+            // pas de casts pour type_client / type_vehicule
         ];
     }
 
-    // ==================== Helpers / Scopes ====================
-
-    public function getIsVehiculeClientAttribute(): bool
+    /**
+     * Hooks du modèle.
+     */
+    protected static function booted(): void
     {
-        return $this->type_client === self::TYPE_CLIENT_VEHICULE;
-    }
-
-    public function scopeSpecifique($query)
-    {
-        return $query->where('type_client', self::TYPE_CLIENT_SPECIFIQUE);
-    }
-
-    public function scopeVehicule($query)
-    {
-        return $query->where('type_client', self::TYPE_CLIENT_VEHICULE);
-    }
-
-    // ==================== Boot / Hooks ====================
-
-    protected static function booted()
-    {
-        static::creating(function ($user) {
-            $user->reference = self::generateUniqueReference();
-
-            // Sécurise la cohérence à la création :
-            if (($user->type_client ?? self::TYPE_CLIENT_SPECIFIQUE) === self::TYPE_CLIENT_SPECIFIQUE) {
-                $user->type_vehicule = null;
+        static::creating(function (self $user) {
+            if (empty($user->reference)) {
+                $user->reference = self::generateUniqueReference();
             }
         });
 
-        static::updating(function ($user) {
-            // Si on repasse en 'specifique', on purge les champs véhicule
-            if ($user->type_client === self::TYPE_CLIENT_SPECIFIQUE) {
-                $user->type_vehicule = null; 
-            }
-        });
-
-        static::deleting(function ($user) {
-            // Supprime l'adresse associée si elle existe
+        static::deleting(function (self $user) {
             if ($user->adresse) {
                 $user->adresse->delete();
             }
         });
     }
 
-    public static function generateUniqueReference()
+    /**
+     * Génère une référence unique.
+     */
+    public static function generateUniqueReference(): string
     {
         do {
-            $reference = strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 2)) . rand(10, 99) . rand(0, 9);
+            $reference = strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 2))
+                       . rand(10, 99)
+                       . rand(0, 9);
         } while (self::where('reference', $reference)->exists());
 
         return $reference;
     }
 
     /**
-     * Get the email verification URL for the given user.
-     *
-     * @return string
+     * URL de vérification d'email (valide 60 minutes).
      */
-    public function verificationUrl($notifiable)
+    public function verificationUrl($notifiable): string
     {
         return URL::temporarySignedRoute(
             'verification.verify',
-            now()->addMinutes(1), // Lien expire après 1 minute
+            now()->addMinutes(60),
             ['id' => $notifiable->getKey(), 'hash' => sha1($notifiable->getEmailForVerification())]
         );
     }
 
+    /**
+     * Notification de réinitialisation de mot de passe.
+     */
     public function sendPasswordResetNotification($token): void
-{
-    $this->notify(new CustomResetPassword($token));
-}
+    {
+        $this->notify(new CustomResetPassword($token));
+    }
 }

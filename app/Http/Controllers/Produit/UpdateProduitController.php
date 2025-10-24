@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Exception;
 
 class UpdateProduitController extends Controller
@@ -23,53 +24,71 @@ class UpdateProduitController extends Controller
                 return $this->responseJson(false, 'Produit introuvable.', null, 404);
             }
 
-            // Règles de base
+            // ✔️ Règles de base (entiers GNF)
             $rules = [
-                'nom' => 'sometimes|required|string|max:255',
-                'categorie' => 'sometimes|required|string|in:vente,achat,all,matériel',
-                'prix_vente' => 'nullable|numeric|min:0',
-                'prix_achat' => 'nullable|numeric|min:0',
-                'quantite_stock' => 'nullable|integer|min:0',
-                'cout' => 'nullable|numeric|min:0',
-                'image' => 'nullable|string|max:255',
+                'nom'            => ['sometimes','required','string','max:255'],
+                'type'           => ['sometimes','required', Rule::in(['vente','achat','all'])],
+                'categorie'      => ['nullable','string','max:100'],
+
+                'prix_vente'     => ['nullable','integer','min:0'],
+                'prix_usine'     => ['nullable','integer','min:0'],
+                'prix_achat'     => ['nullable','integer','min:0'],
+                'cout'           => ['nullable','integer','min:0'],
+
+                'quantite_stock' => ['nullable','integer','min:0'],
+                'image'          => ['nullable','string','max:255'],
+                'statut'         => ['nullable', Rule::in(['disponible','rupture','archivé'])], // si tu veux permettre le set direct
             ];
 
             $validated = $request->validate($rules);
 
-            // Catégorie à prendre en compte (valeur modifiée ou existante)
-            $categorie = strtolower($validated['categorie'] ?? $produit->categorie);
+            // 🔀 Valeurs effectives (payload ⟶ sinon valeur existante)
+            $effectiveType       = strtolower($validated['type'] ?? $produit->type);
+            $effectivePrixVente  = $validated['prix_vente'] ?? $produit->prix_vente;
+            $effectivePrixUsine  = $validated['prix_usine'] ?? $produit->prix_usine;
+            $effectivePrixAchat  = $validated['prix_achat'] ?? $produit->prix_achat;
 
-            // Règles conditionnelles obligatoires selon catégorie
-            if (in_array($categorie, ['vente', 'all', 'matériel'])) {
-                if (!isset($validated['prix_vente']) || $validated['prix_vente'] <= 0) {
-                    throw ValidationException::withMessages([
-                        'prix_vente' => 'Le prix de vente est requis et doit être strictement supérieur à 0 pour cette catégorie.'
-                    ]);
+            // ✅ Règles conditionnelles métier
+            $errors = [];
+
+            if ($effectiveType === 'vente') {
+                if (empty($effectivePrixVente) || $effectivePrixVente <= 0) {
+                    $errors['prix_vente'][] = 'Obligatoire (> 0) quand type = "vente".';
+                }
+                if (empty($effectivePrixUsine) || $effectivePrixUsine <= 0) {
+                    $errors['prix_usine'][] = 'Obligatoire (> 0) quand type = "vente".';
                 }
             }
 
-            if (in_array($categorie, ['achat', 'all', 'matériel'])) {
-                if (!isset($validated['prix_achat']) || $validated['prix_achat'] <= 0) {
-                    throw ValidationException::withMessages([
-                        'prix_achat' => 'Le prix d\'achat est requis et doit être strictement supérieur à 0 pour cette catégorie.'
-                    ]);
+            if ($effectiveType === 'achat') {
+                if (empty($effectivePrixAchat) || $effectivePrixAchat <= 0) {
+                    $errors['prix_achat'][] = 'Obligatoire (> 0) quand type = "achat".';
                 }
             }
 
-            // Mise à jour des champs texte
+            if (!empty($errors)) {
+                throw ValidationException::withMessages($errors);
+            }
+
+            // 🧹 Normalisations
             if (isset($validated['nom'])) {
-                $validated['nom'] = strtolower($validated['nom']);
+                $validated['nom'] = strtolower(trim($validated['nom']));
             }
-            if (isset($validated['categorie'])) {
-                $validated['categorie'] = strtolower($validated['categorie']);
+            if (array_key_exists('categorie', $validated)) {
+                $validated['categorie'] = (isset($validated['categorie']) && trim($validated['categorie']) !== '')
+                    ? strtolower(trim($validated['categorie']))
+                    : null;
+            }
+            if (isset($validated['type'])) {
+                $validated['type'] = $effectiveType;
             }
 
-            // Mise à jour du statut selon quantité
-            if (array_key_exists('quantite_stock', $validated)) {
-                $validated['statut'] = $validated['quantite_stock'] > 0 ? 'disponible' : 'rupture';
+            // 🔁 Statut auto si on change le stock (sauf si statut explicitement fourni)
+            if (array_key_exists('quantite_stock', $validated) && !array_key_exists('statut', $validated)) {
+                $validated['statut'] = ($validated['quantite_stock'] ?? $produit->quantite_stock) > 0 ? 'disponible' : 'rupture';
             }
 
-            // Mise à jour en base
+            // 💾 Mise à jour
             $produit->update($validated);
 
             return $this->responseJson(true, 'Produit mis à jour avec succès.', $produit);
@@ -77,10 +96,10 @@ class UpdateProduitController extends Controller
         } catch (ValidationException $e) {
             return $this->responseJson(false, 'Erreur de validation.', $e->errors(), 422);
         } catch (QueryException $e) {
-            Log::error('Erreur SQL lors de la mise à jour du produit : ' . $e->getMessage());
+            Log::error('Erreur SQL lors de la mise à jour du produit : '.$e->getMessage());
             return $this->responseJson(false, 'Erreur base de données.', null, 500);
         } catch (Exception $e) {
-            Log::error('Erreur inattendue lors de la mise à jour du produit : ' . $e->getMessage());
+            Log::error('Erreur inattendue lors de la mise à jour du produit : '.$e->getMessage());
             return $this->responseJson(false, 'Erreur inattendue.', $e->getMessage(), 500);
         }
     }

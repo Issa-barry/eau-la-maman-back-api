@@ -82,7 +82,7 @@ class CommandeStoreController extends Controller
             'vehicule_id.required' => 'Le véhicule est requis.',
             'vehicule_id.exists'   => 'Véhicule introuvable.',
         ]);
-    }
+    } 
 
     private function calculateMontantTotal(array $lignes, float $reduction = 0): float
     {

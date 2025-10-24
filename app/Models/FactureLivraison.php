@@ -25,7 +25,7 @@ class FactureLivraison extends Model
     ];
 
     // Charge utile par défaut (ajuste si besoin)
-    protected $with = ['commande.contact', 'lignes.produit', 'encaissements'];
+    protected $with = ['commande.vehicule', 'lignes.produit', 'encaissements'];
 
     protected $casts = [
         'total'      => 'float',
@@ -38,7 +38,7 @@ class FactureLivraison extends Model
 
     public function commande()
     {
-        // ⚠️ Fix : classe avec majuscule
+        //  Fix : classe avec majuscule
         return $this->belongsTo(Commande::class, 'commande_id');
     }
 

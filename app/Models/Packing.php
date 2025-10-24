@@ -9,24 +9,31 @@ class Packing extends Model
 {
     use HasFactory;
 
+    protected $table = 'packings';
+
     protected $fillable = [
-        'user_id',
+        'reference',
+        'contact_id',       //  nouveau lien
         'date',
-        'heure_debut',
-        'heure_fin',
-        'statut',
-        'reference'
+        'shift',            // 'jour' | 'nuit'
+        'statut',           // 'brouillon' | 'en_cours' | 'validé' | 'annulé'
+        'produit_id',       //  plus de lignes, on stocke le produit ici
+        'quantite_packed',  //  quantité totale packée
     ];
 
-    public function user()
+    protected $casts = [
+        'date'            => 'date',
+        'quantite_packed' => 'integer',
+    ];
+
+    // Relations
+    public function contact()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Contact::class);
     }
 
-  
-
-    public function lignes()
+    public function produit()
     {
-        return $this->hasMany(PackingLigne::class);
+        return $this->belongsTo(Produit::class);
     }
 }

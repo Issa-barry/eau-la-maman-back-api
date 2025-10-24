@@ -13,22 +13,35 @@ return new class extends Migration
     {
         Schema::create('produits', function (Blueprint $table) {
             $table->id();
-            $table->string('code')->unique(); // code unique du produit (ex: code-barre)
+
+            // Code produit unique (ex: UUID ou code-barres)
+            $table->string('code')->unique();
+
+            // Informations principales
             $table->string('nom');
-            $table->decimal('prix_vente', 15, 2);
-            $table->integer('quantite_stock');
-            $table->enum('categorie', ['vente', 'achat', 'all']);
-            $table->decimal('prix_achat', 15, 2)->nullable();
-            $table->decimal('cout', 15, 2)->nullable();
+            $table->enum('type', ['vente', 'achat', 'all'])->index(); // type fonctionnel
+            $table->string('categorie')->nullable();                  // libre (riz, eau, etc.)
+
+            // Prix en GNF (entiers)
+            $table->bigInteger('prix_vente')->nullable();
+            $table->bigInteger('prix_usine')->nullable();
+            $table->bigInteger('prix_achat')->nullable();
+            $table->bigInteger('cout')->nullable();
+
+            // Stock et statut
+            $table->integer('quantite_stock')->default(0);
+            $table->enum('statut', ['disponible', 'rupture', 'archivé'])->default('disponible');
+
+            // Autres infos
             $table->string('image')->nullable();
-             $table->enum('statut', ['disponible', 'rupture', 'archivé'])->default('disponible');
+
             $table->timestamps();
         });
     }
 
     /**
      * Reverse the migrations.
-     */ 
+     */
     public function down(): void
     {
         Schema::dropIfExists('produits');

@@ -14,50 +14,53 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
 
-            $table->string('reference', 5)->unique();              // Généré automatiquement
-            $table->string('nom_complet');                         // Obligatoire
-            $table->string('phone')->unique();                     // Obligatoire + unique
-            $table->string('email')->nullable()->unique();         // Facultatif pour les clients
+            // Référence unique (ex : IB123)
+            $table->string('reference', 6)->unique();
+
+            // Identité
+            $table->string('prenom')->nullable();
+            $table->string('nom')->nullable();
+
+            // Coordonnées
+            $table->string('phone')->unique();
+            $table->string('email')->nullable()->unique();
 
             $table->timestamp('email_verified_at')->nullable();
+            $table->string('password')->nullable();
 
-            $table->foreignId('adresse_id')
-                ->nullable()
-                ->constrained('adresses')
-                ->onDelete('cascade');                             // Adresse facultative
-
-            $table->enum('statut', ['active', 'attente', 'bloque', 'archive'])->default('attente');
-
+            // Informations personnelles
             $table->date('date_naissance')->nullable();
             $table->enum('civilite', ['Mr', 'Mme', 'Mlle', 'Autre'])->default('Autre');
 
-            $table->string('password')->nullable();                // Facultatif pour les clients
+            // Liens vers autres tables
+            $table->foreignId('adresse_id')
+                ->nullable()
+                ->constrained('adresses')
+                ->onDelete('cascade');
 
-           $table->foreignId('role_id')
-            ->nullable()
-            ->default(2) // 2 = client
-            ->constrained('roles')
-            ->onDelete('set null');
-                                     // Rôle client par défaut
+            $table->foreignId('role_id')
+                ->nullable()
+                ->default(2) // 2 = client par défaut
+                ->constrained('roles')
+                ->onDelete('set null');
 
-            $table->unsignedBigInteger('agence_id')->nullable();   // Agence liée si employé
+            $table->unsignedBigInteger('agence_id')->nullable(); // si employé lié à une agence
 
-            // 'specifique' (pas de véhicule) | 'vehicule' (un véhicule)
-            $table->enum('type_client', ['specifique', 'vehicule'])->default('specifique');
-            
-            // Renseigné seulement si type_client = 'vehicule'
-            $table->enum('type_vehicule', ['camion', 'fourgonette', 'tricycle'])->nullable();
+            // Statut du compte
+            $table->enum('statut', ['active', 'attente', 'bloque', 'archive'])->default('attente');
 
             $table->rememberToken();
             $table->timestamps();
         });
 
+        // Table pour la réinitialisation de mot de passe (standard Laravel)
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
 
+        // Table des sessions (option Sanctum)
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
@@ -73,8 +76,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

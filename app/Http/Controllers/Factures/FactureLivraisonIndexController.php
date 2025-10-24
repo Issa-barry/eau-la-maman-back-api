@@ -15,7 +15,7 @@ class FactureLivraisonIndexController extends Controller
     public function index(): JsonResponse
     {
         try {
-            $factures = FactureLivraison::with(['commande.contact']) // $with du modèle chargera aussi lignes & encaissements
+            $factures = FactureLivraison::with(['commande.vehicule']) // $with du modèle chargera aussi lignes & encaissements
                 ->get();
 
             return $this->responseJson(true, 'Liste des factures récupérée avec succès.', $factures);
@@ -29,7 +29,7 @@ class FactureLivraisonIndexController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $facture = FactureLivraison::with(['commande.contact']) // $with du modèle fait le reste
+            $facture = FactureLivraison::with(['commande.vehicule']) // $with du modèle fait le reste
                 ->find($id);
 
             if (!$facture) {
