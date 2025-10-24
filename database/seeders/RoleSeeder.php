@@ -10,13 +10,16 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
-            ['name' => 'Administrateur',       'trigramme' => 'adm'],
-            ['name' => 'Client',               'trigramme' => 'cli'],
-            ['name' => 'Agent',                'trigramme' => 'agt'],
-            ['name' => 'Responsable agence',   'trigramme' => 'res'],
-            ['name' => 'Packing',    'trigramme' => 'pac'],
-            ['name' => 'Livreur',    'trigramme' => 'liv'],
-            ['name' => 'Comptable',   'trigramme' => 'com'],
+            ['name' => 'administrateur',       'trigramme' => 'adm'],
+            ['name' => 'client',               'trigramme' => 'cli'],
+            ['name' => 'manager',                'trigramme' => 'mng'],
+            ['name' => 'comptable',   'trigramme' => 'com'],
+            ['name' => 'vendeur',   'trigramme' => 'ven'],
+            ['name' => 'consultant',   'trigramme' => 'csl'],
+            ['name' => 'packing',    'trigramme' => 'pac'],
+            ['name' => 'livreur',    'trigramme' => 'liv'],
+            ['name' => 'vehicule',    'trigramme' => 'veh'],
+
         ];
 
         foreach ($roles as $data) {
@@ -29,7 +32,7 @@ class RoleSeeder extends Seeder
                 ->exists();
 
             if ($exists) {
-                $this->command->error("⚠️ Le trigramme '{$trigramme}' est déjà utilisé !");
+                $this->command->error(" Le trigramme '{$trigramme}' est déjà utilisé !");
                 continue;
             }
 

@@ -8,18 +8,28 @@ use App\Traits\JsonResponseTrait;
 
 class PackingShowController extends Controller
 {
-    use JsonResponseTrait; 
+    use JsonResponseTrait;
 
+    /**
+     * GET /packings
+     * Retourne la liste avec relations contact & produit.
+     */
     public function index()
     {
-        $packings = Packing::with(['user', 'lignes.produit'])->latest()->get();
+        $packings = Packing::with(['contact', 'produit'])
+            ->latest()
+            ->get();
+
         return $this->responseJson(true, 'Liste des packings.', $packings);
     }
 
-
-     public function show(int $id)
+    /**
+     * GET /packings/{id}
+     * Détails d’un packing (relations contact & produit).
+     */
+    public function show(int $id)
     {
-        $packing = Packing::with(['user', 'lignes.produit'])->find($id);
+        $packing = Packing::with(['contact', 'produit'])->find($id);
 
         if (!$packing) {
             return $this->responseJson(false, 'Packing non trouvé.', null, 404);

@@ -7,14 +7,13 @@ use App\Http\Controllers\User\Clients\ShowClientController;
 use App\Http\Controllers\User\Clients\UpdateClientController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\User\DeleteUserController;
+use App\Http\Controllers\User\Employes\CreateEmployeController;
 use App\Http\Controllers\User\ShowUserController;
 use App\Http\Controllers\User\updateUserController;
 use App\Http\Controllers\User\UserStatutController;
 use App\Http\Controllers\User\UserAffecterAgenceController;
 use App\Http\Controllers\User\UserDesacfecterAgenceController;
-use App\Http\Controllers\User\Employe\EmployeCreateController;
-use App\Http\Controllers\User\Employes\CreateEmployeController;
-
+ 
 Route::prefix('users')->name('users.')->group(function () {
         Route::post('/clients/create', [CreateClientController::class, 'store'])->name('clients.store')->middleware('throttle:20,1'); 
         Route::get('/clients/all', [ShowClientController::class, 'index']);
